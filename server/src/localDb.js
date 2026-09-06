@@ -19,7 +19,8 @@ const defaultState = {
   monitoringResponses: [],
   calendarEvents: [],
   notifications: [],
-  auditLogs: []
+  auditLogs: [],
+  emergencyTokens: []
 };
 
 function readDb() {
@@ -150,6 +151,7 @@ module.exports = {
   CalendarEvent: new Collection('calendarEvents'),
   Notification: new Collection('notifications'),
   AuditLog: new Collection('auditLogs'),
+  EmergencyToken: new Collection('emergencyTokens'),
   readDb,
   writeDb
 };

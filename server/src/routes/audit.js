@@ -1,30 +1,35 @@
-const router = require('express').Router();
-const auth = require('../middleware/auth');
+﻿const router = require('express').Router();
 const { getModel } = require('../models/provider');
+const { authenticate, authorizeRoles } = require('../middleware/rbac');
 
-router.get('/', auth, async (req, res) => {
+// GET /api/audit (ADMIN ONLY)
+router.get('/', authenticate, authorizeRoles('ADMIN'), async (req, res) => {
   try {
-    const Model = getModel('AuditLog');
-    const filter = req.query.studentId ? { studentId: req.query.studentId } : {};
-    const items = await Model.find(filter);
-    res.json(items);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const AuditLog = getModel('AuditLog');
+    const logs = await AuditLog.find({});
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
+  }
 });
 
-router.post('/', auth, async (req, res) => {
+// POST /api/audit (Authenticated system audit recorder)
+router.post('/', authenticate, async (req, res) => {
   try {
-    const Model = getModel('AuditLog');
-    const item = await Model.create(req.body);
-    res.json(item);
-  } catch (err) { res.status(400).json({ error: err.message }); }
-});
-
-router.put('/:id', auth, async (req, res) => {
-  try {
-    const Model = getModel('AuditLog');
-    const item = await Model.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(item);
-  } catch (err) { res.status(400).json({ error: err.message }); }
+    const AuditLog = getModel('AuditLog');
+    const logData = {
+      ...req.body,
+      userId: req.user.id || req.body.userId,
+      userName: req.user.name || req.body.userName,
+      userRole: req.user.role || req.body.userRole,
+      ipAddress: req.ip || req.connection.remoteAddress || '127.0.0.1',
+      timestamp: new Date().toISOString()
+    };
+    const log = await AuditLog.create(logData);
+    res.status(201).json(log);
+  } catch (err) {
+    res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: err.message } });
+  }
 });
 
 module.exports = router;

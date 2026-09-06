@@ -34,6 +34,10 @@ import { AuditLogViewer } from './components/admin/AuditLogViewer';
 import { RestrictedEmergencyAccessLog } from './components/admin/RestrictedEmergencyAccessLog';
 import { SystemSettings } from './components/admin/SystemSettings';
 
+// Researcher & Emergency Responder Views
+import { ResearcherDashboard } from './components/researcher/ResearcherDashboard';
+import { EmergencyResponderPortal } from './components/emergency/EmergencyResponderPortal';
+
 // Services & Types
 import { authService } from './services/authService';
 import { healthStore } from './services/healthStore';
@@ -74,6 +78,10 @@ export function App() {
           setCurrentTab('medical-dashboard');
         } else if (user?.role === 'ADMIN' && !currentTab.startsWith('admin-')) {
           setCurrentTab('admin-dashboard');
+        } else if (user?.role === 'RESEARCHER' && !currentTab.startsWith('research-')) {
+          setCurrentTab('research-dashboard');
+        } else if (user?.role === 'EMERGENCY_RESPONDER' && !currentTab.startsWith('emergency-')) {
+          setCurrentTab('emergency-responder-portal');
         }
       }
     });
@@ -87,7 +95,8 @@ export function App() {
       setCurrentTab('login');
       return;
     }
-    // Role-based Route Protection Guard
+
+    // Role-based Route Protection Guards
     if (currentUser.role === 'STUDENT' && !tab.startsWith('student-')) {
       healthStore.logAudit(
         currentUser.studentId || currentUser.id,
@@ -102,6 +111,19 @@ export function App() {
       setCurrentTab('student-dashboard');
       return;
     }
+
+    if (currentUser.role === 'RESEARCHER' && (tab.startsWith('student-') || tab.startsWith('medical-') || tab === 'admin-students')) {
+      alert(`Privacy Rule Denied: Researchers are restricted to de-identified population analytics.`);
+      setCurrentTab('research-dashboard');
+      return;
+    }
+
+    if (currentUser.role === 'EMERGENCY_RESPONDER' && (tab.startsWith('student-') || tab.startsWith('medical-') || tab.startsWith('admin-'))) {
+      alert(`Role Access Denied: Emergency responders can only access the emergency triage desk.`);
+      setCurrentTab('emergency-responder-portal');
+      return;
+    }
+
     setCurrentTab(tab);
   };
 
@@ -128,7 +150,7 @@ export function App() {
         return (
           <div className="p-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-4">
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Emergency Digital Card</h2>
-            <p className="text-xs text-slate-500">Launch restricted emergency card & token barcode view.</p>
+            <p className="text-xs text-slate-500">Launch restricted emergency card & cryptographic token view.</p>
             <button
               onClick={() => setIsEmergencyModalOpen(true)}
               className="px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
@@ -163,12 +185,25 @@ export function App() {
         return <MedicalStaffManagement />;
       case 'admin-roles':
         return <RoleManagement />;
+      case 'admin-research':
+        return <ResearcherDashboard />;
       case 'admin-emergency-logs':
         return <RestrictedEmergencyAccessLog />;
       case 'admin-audit-logs':
         return <AuditLogViewer />;
       case 'admin-settings':
         return <SystemSettings />;
+
+      // Researcher Views
+      case 'research-dashboard':
+      case 'research-experiments':
+      case 'research-cohort':
+        return <ResearcherDashboard />;
+
+      // Emergency Responder Views
+      case 'emergency-responder-portal':
+      case 'emergency-responder-metrics':
+        return <EmergencyResponderPortal />;
 
       default:
         return <StudentDashboard onNavigate={handleNavigate} onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)} />;
@@ -178,6 +213,8 @@ export function App() {
   const getThemeClass = () => {
     if (currentUser.role === 'STUDENT') return 'theme-student';
     if (currentUser.role === 'MEDICAL_STAFF') return 'theme-medical';
+    if (currentUser.role === 'RESEARCHER') return 'theme-researcher';
+    if (currentUser.role === 'EMERGENCY_RESPONDER') return 'theme-emergency';
     return 'theme-admin';
   };
 
@@ -191,18 +228,12 @@ export function App() {
       <LoginPage
         onLoginSuccess={role => {
           if (role === 'STUDENT') {
-            // Check if student profile is complete
             const user = authService.getCurrentUser();
             const sid = user.studentId || user.id;
             const profile = sid ? healthStore.getStudentProfile(sid) : undefined;
             if (profile && !profile.profileComplete) {
               setShowCompleteProfile(true);
             }
-            handleNavigate('student-dashboard');
-          } else if (role === 'MEDICAL_STAFF') {
-            handleNavigate('medical-dashboard');
-          } else {
-            handleNavigate('admin-dashboard');
           }
         }}
       />
@@ -210,53 +241,36 @@ export function App() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${getThemeClass()} transition-colors ${darkMode ? 'dark' : ''}`}>
-      
-      {/* Global Header Navigation Bar */}
+    <div className={`min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 ${getThemeClass()} transition-colors duration-200`}>
       <Navbar
         currentTab={currentTab}
-        onNavigate={handleNavigate}
         onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
+        onNavigate={handleNavigate}
         darkMode={darkMode}
-        onToggleDark={() => setDarkMode(d => !d)}
+        onToggleDark={() => setDarkMode(!darkMode)}
       />
 
-      {/* Main Content Area with Sidebar */}
-      <div className="flex-1 flex w-full">
+      <div className="flex">
         <Sidebar
           role={currentUser.role}
           currentTab={currentTab}
           onNavigate={handleNavigate}
         />
 
-        <main className="flex-1 p-4 md:p-8 min-w-0 overflow-y-auto bg-slate-50 dark:bg-slate-950">
+        <main className="flex-1 p-6 max-w-7xl mx-auto overflow-x-hidden">
           {renderActiveView()}
         </main>
       </div>
 
-      {/* Emergency Modal View */}
+      {/* Emergency Card Modal */}
       <EmergencyModal
         isOpen={isEmergencyModalOpen}
         onClose={() => setIsEmergencyModalOpen(false)}
-        studentId={studentId}
+        studentId={currentUser.studentId || currentUser.id}
       />
 
-      {/* Complete Profile Onboarding Modal */}
-      {showCompleteProfile && currentUser.role === 'STUDENT' && (() => {
-        const sid = currentUser.studentId || currentUser.id;
-        const profile = sid ? healthStore.getStudentProfile(sid) : undefined;
-        if (!profile) return null;
-        return (
-          <CompleteProfileModal
-            studentId={sid}
-            existingProfile={profile}
-            onComplete={() => setShowCompleteProfile(false)}
-          />
-        );
-      })()}
-
-      {/* Version Diff Viewer Modal */}
-      {activeRx && v1 && v2 && (
+      {/* Prescription Version Diff Viewer Modal */}
+      {v1 && v2 && activeRx && (
         <VersionDiffViewer
           isOpen={isDiffViewerOpen}
           onClose={() => setIsDiffViewerOpen(false)}
@@ -266,7 +280,18 @@ export function App() {
         />
       )}
 
+      {/* Complete Medical Profile Modal for First-time Students */}
+      {showCompleteProfile && studentId && healthStore.getStudentProfile(studentId) && (
+        <CompleteProfileModal
+          studentId={studentId}
+          existingProfile={healthStore.getStudentProfile(studentId)!}
+          onComplete={() => {
+            setShowCompleteProfile(false);
+          }}
+        />
+      )}
     </div>
   );
 }
+
 export default App;

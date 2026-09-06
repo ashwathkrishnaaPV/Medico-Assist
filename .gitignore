@@ -1,9 +1,12 @@
 # Environment files & Secrets
 .env
-.env.*
-*.env
+.env.local
+.env.*.local
 server/.env
-server/.env.*
+server/.env.local
+server/.env.*.local
+!.env.example
+!server/.env.example
 
 # Local database persistence & logs
 server/data/*.json

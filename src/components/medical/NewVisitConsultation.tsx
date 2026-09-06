@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Stethoscope, Activity, Pill, Apple, Calendar, Save, CheckCircle2, Plus, Trash2 } from 'lucide-react';
+import { Stethoscope, Activity, Pill, Apple, Calendar, Save, CheckCircle2, Plus, Trash2, Brain, Sparkles, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { healthStore } from '../../services/healthStore';
 import { generateAINutritionRecommendation } from '../../services/nutritionEngine';
+import { evaluateDualRisk } from '../../services/clinicalRiskEngine';
 import { StudentProfileData, Vitals, PrescriptionItem } from '../../types';
 import { authService } from '../../services/authService';
 
@@ -170,6 +171,23 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
   };
 
   const prevVitalsLatest = previousVitals[0] || { bloodPressureSys: 118, bloodPressureDia: 76, spo2Percent: 99, heartRateBpm: 72, weightKg: 63 };
+
+  const currentHeightM = (heightCm || 170) / 100;
+  const currentBmi = parseFloat(((weightKg || 65) / (currentHeightM * currentHeightM)).toFixed(1));
+
+  const dualRisk = evaluateDualRisk({
+    studentId,
+    vitals: {
+      bloodPressureSys: bpSys,
+      bloodPressureDia: bpDia,
+      heartRateBpm: hrBpm,
+      spo2Percent: spo2,
+      temperatureF: tempF,
+      bmi: currentBmi
+    },
+    symptomSeverity: chiefComplaint ? 5 : 2,
+    chronicConditions: profile?.criticalConditions || []
+  });
 
   return (
     <div className="space-y-6 theme-medical animate-fade-in pb-12">
@@ -393,6 +411,98 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
               </div>
             </div>
 
+          </div>
+        </div>
+
+        {/* Explainable AI Clinical Risk Stratification Card */}
+        <div className="card-clinical p-6 space-y-4 border-2 border-indigo-100 dark:border-indigo-950/60 bg-gradient-to-br from-white via-indigo-50/20 to-white dark:from-slate-900 dark:via-indigo-950/20 dark:to-slate-900">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                <Brain className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                    Clinical Decision Support: Explainable Risk Stratification
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px]">
+                    ML PRIOR v2.1
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Multivariate prior model with feature contribution attribution & NEWS2 heuristic comparison.
+                </p>
+              </div>
+            </div>
+
+            {/* Risk Tier Badge */}
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <div className="text-right">
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Predicted Tier</span>
+                <span className={`text-xs font-black px-2.5 py-1 rounded-lg inline-block ${
+                  dualRisk.machineLearningModel.riskTier === 'URGENT'
+                    ? 'bg-red-600 text-white shadow-xs'
+                    : dualRisk.machineLearningModel.riskTier === 'HIGH'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : dualRisk.machineLearningModel.riskTier === 'MODERATE'
+                        ? 'bg-teal-600 text-white shadow-xs'
+                        : 'bg-emerald-600 text-white shadow-xs'
+                }`}>
+                  {dualRisk.machineLearningModel.riskTier} RISK ({dualRisk.machineLearningModel.confidenceScore}%)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Model Comparison Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1">
+              <span className="font-bold text-slate-700 dark:text-slate-300 block text-[11px]">
+                Baseline Rule-Based (NEWS2 Score: {dualRisk.ruleBasedBaseline.totalScore})
+              </span>
+              <p className="text-slate-600 dark:text-slate-400 text-[11px]">
+                Threshold Tier: <span className="font-bold text-slate-900 dark:text-white">{dualRisk.ruleBasedBaseline.riskTier}</span>
+                {dualRisk.ruleBasedBaseline.contributingRules.length > 0 && ` (${dualRisk.ruleBasedBaseline.contributingRules.join(', ')})`}
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/40 space-y-1">
+              <span className="font-bold text-indigo-900 dark:text-indigo-200 block text-[11px]">
+                Machine Learning Stratification
+              </span>
+              <p className="text-indigo-800 dark:text-indigo-300 text-[11px]">
+                Calibrated Posterior: <span className="font-bold">{dualRisk.machineLearningModel.confidenceScore}%</span> · Log-Odds: {dualRisk.machineLearningModel.logOdds}
+              </p>
+            </div>
+          </div>
+
+          {/* Contributing Feature Attributions (XAI) */}
+          {dualRisk.machineLearningModel.contributingFactors.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                Primary Contributing Factors (Feature Attribution):
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {dualRisk.machineLearningModel.contributingFactors.slice(0, 4).map((f, i) => (
+                  <div key={i} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs space-y-1">
+                    <div className="flex justify-between font-bold">
+                      <span className="text-slate-800 dark:text-slate-200">{f.feature} ({f.clinicalValue})</span>
+                      <span className="font-mono text-indigo-600 dark:text-indigo-400">+{f.percentageOfRisk}%</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+                      {f.explanation}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* CDSS Safety Disclaimer */}
+          <div className="p-3 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-900 dark:text-amber-300 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <span className="leading-snug">{dualRisk.machineLearningModel.clinicalDecisionSupportNotice}</span>
           </div>
         </div>
 

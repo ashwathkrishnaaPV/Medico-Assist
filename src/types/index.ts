@@ -1,4 +1,4 @@
-export type Role = 'STUDENT' | 'MEDICAL_STAFF' | 'ADMIN' | 'EMERGENCY_RESPONDER';
+export type Role = 'STUDENT' | 'MEDICAL_STAFF' | 'ADMIN' | 'RESEARCHER' | 'EMERGENCY_RESPONDER';
 
 export interface User {
   id: string;
@@ -61,7 +61,7 @@ export interface PrescriptionItem {
   id: string;
   medicineName: string;
   dosage: string;
-  frequency: string; // e.g. "Twice daily after meals"
+  frequency: string;
   durationDays: number;
   instructions: string;
 }
@@ -212,4 +212,172 @@ export interface RestrictedEmergencyView {
   };
   medicalCentreContact: string;
   token: string;
+}
+
+// -------------------------------------------------------------
+// RESEARCH & CLINICAL DECISION SUPPORT EXTENSIONS
+// -------------------------------------------------------------
+
+export type RiskTier = 'LOW' | 'MODERATE' | 'HIGH' | 'URGENT';
+
+export interface ContributingFactor {
+  feature: string;
+  clinicalValue: string;
+  attributionScore: number;
+  direction: 'RISK_INCREASING' | 'PROTECTIVE';
+  percentageOfRisk: number;
+  explanation: string;
+}
+
+export interface RiskEvaluationResult {
+  engine: string;
+  modelVersion?: string;
+  riskTier: RiskTier;
+  confidenceScore: number;
+  logOdds?: number;
+  contributingFactors: ContributingFactor[];
+  clinicalDecisionSupportNotice: string;
+}
+
+export interface DualRiskEvaluation {
+  studentId?: string;
+  timestamp: string;
+  ruleBasedBaseline: {
+    engine: string;
+    totalScore: number;
+    riskTier: RiskTier;
+    contributingRules: string[];
+  };
+  machineLearningModel: RiskEvaluationResult;
+  isDivergent: boolean;
+  recommendedTier: RiskTier;
+  divergenceReason: string;
+}
+
+export interface EmergencyTokenResponse {
+  token: string;
+  tokenId: string;
+  expiresAt: string;
+  ttlSeconds: number;
+  studentId: string;
+  studentName: string;
+}
+
+export interface EmergencyVerificationResult {
+  studentName: string;
+  studentId: string;
+  bloodGroup: string;
+  criticalAllergies: string[];
+  criticalConditions: string[];
+  criticalMedications: string[];
+  emergencyContact: {
+    name: string;
+    relation: string;
+    phone: string;
+  };
+  medicalCentreContact: string;
+  accommodation?: string;
+  hostelLocation?: string;
+  lastClinicalVerification: string;
+  accessMetadata: {
+    accessTimestamp: string;
+    responderName: string;
+    responderRole: string;
+    tokenHashPrefix: string;
+    latencyMs: number;
+  };
+  privacyNotice: string;
+}
+
+export interface EmergencyMetrics {
+  metricName: string;
+  traditionalFullRecordFields: number;
+  privacyPreservingEmergencyFields: number;
+  withheldSensitiveFieldsCount: number;
+  privacyPreservationRatioPercent: number;
+  exposureRatioPercent: number;
+  totalTokensGenerated: number;
+  totalEmergencyAccessEvents: number;
+  averageAccessLatencyMs: number;
+  auditLoggingCompletenessPercent: number;
+}
+
+export interface HealthTimelineEvent {
+  id: string;
+  date: string;
+  time?: string;
+  type: 'VISIT' | 'PRESCRIPTION_V1' | 'PRESCRIPTION_MODIFIED' | 'DAILY_MONITORING' | 'EMERGENCY_ACCESS' | 'NUTRITION';
+  title: string;
+  subtitle: string;
+  severity?: RiskTier;
+  details?: string;
+  doctorOrActor?: string;
+  badge?: string;
+}
+
+export interface BenchmarkExperiment {
+  title: string;
+  hypothesis: string;
+  datasetSize?: number;
+  metricsComparison?: any;
+  metrics?: any;
+  deltaImprovementPercent?: any;
+  conclusion: string;
+}
+
+export interface ResearcherMetrics {
+  privacyProtocol: string;
+  totalCohortSize: number;
+  totalClinicalVisits: number;
+  totalMonitoringResponsesLogged: number;
+  totalPrescriptionsTracked: number;
+  anonymizedDistributions: {
+    conditionPrevalence: Record<string, number>;
+    bloodGroupBreakdown: Record<string, number>;
+    departmentDistribution: Record<string, number>;
+    bmiClassification: {
+      underweight: number;
+      normalWeight: number;
+      overweight: number;
+      obese: number;
+    };
+  };
+  privacyCompliance: {
+    hipaaDeIdentificationMethod: string;
+    directIdentifiersStripped: string[];
+    minimumCellSizeSuppression: number;
+  };
+}
+
+export interface ModelEvaluationMetrics {
+  evaluationTimestamp: string;
+  datasetMetadata: {
+    totalSamples: number;
+    randomSeed: number;
+    classDistribution: Record<string, number>;
+  };
+  overallPerformance: {
+    ruleBasedAccuracy: number;
+    machineLearningAccuracy: number;
+    macroAveragesML: {
+      precision: number;
+      recallSensitivity: number;
+      specificity: number;
+      f1Score: number;
+      macroAUROC: number;
+    };
+  };
+  confusionMatrixRuleBased: Record<string, Record<string, number>>;
+  confusionMatrixML: Record<string, Record<string, number>>;
+  classSpecificMetricsML: Record<string, any>;
+  featureImportanceRankings: Array<{
+    feature: string;
+    relativeImportanceScore: number;
+    clinicalDomain: string;
+  }>;
+  formalExperiments: {
+    experimentA: BenchmarkExperiment;
+    experimentB: BenchmarkExperiment;
+    experimentC: BenchmarkExperiment;
+  };
 }

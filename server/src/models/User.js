@@ -5,7 +5,7 @@ const UserSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   password: { type: String },
-  role: { type: String, enum: ['STUDENT','MEDICAL_STAFF','ADMIN','EMERGENCY_RESPONDER'], default: 'STUDENT' },
+  role: { type: String, enum: ['STUDENT', 'MEDICAL_STAFF', 'ADMIN', 'RESEARCHER', 'EMERGENCY_RESPONDER'], default: 'STUDENT' },
   studentId: String,
   staffId: String,
   department: String,
@@ -21,7 +21,7 @@ UserSchema.pre('save', async function(next) {
 });
 
 UserSchema.methods.comparePassword = function(plain) {
-  if (!this.password) return true;
+  if (!this.password || !plain) return false;
   return bcrypt.compare(plain, this.password);
 };
 

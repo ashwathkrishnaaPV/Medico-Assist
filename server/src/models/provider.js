@@ -1,4 +1,4 @@
-﻿const { getIsConnected } = require('../db');
+const { getIsConnected } = require('../db');
 const localDb = require('../localDb');
 
 const mongooseModels = {
@@ -11,7 +11,8 @@ const mongooseModels = {
   MonitoringResponse: require('./MonitoringResponse'),
   CalendarEvent: require('./CalendarEvent'),
   Notification: require('./Notification'),
-  AuditLog: require('./AuditLog')
+  AuditLog: require('./AuditLog'),
+  EmergencyToken: require('./EmergencyToken')
 };
 
 function getModel(name) {
