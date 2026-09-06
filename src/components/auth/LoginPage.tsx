@@ -15,9 +15,7 @@ import {
   User,
   PlusCircle,
   LogIn,
-  ChevronDown,
-  Brain,
-  ShieldAlert
+  ChevronDown
 } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { healthStore } from '../../services/healthStore';
@@ -380,41 +378,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     <span>1-Click Evaluation Personas:</span>
                     <span className="text-[10px] text-emerald-400 font-semibold">Demo Ready</span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px]">
+                  <div className="grid grid-cols-3 gap-2 text-[11px]">
                     <button
                       type="button"
                       onClick={() => handleQuickLogin('alex@sece.ac.in', 'STUDENT')}
-                      className="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-emerald-300 border border-emerald-900 font-semibold text-left transition-all"
+                      className="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-emerald-300 border border-emerald-900 font-semibold text-center transition-all"
                     >
-                      🎓 Student (Alex)
+                      🎓 Student
                     </button>
                     <button
                       type="button"
                       onClick={() => handleQuickLogin('jenkins@sece.ac.in', 'MEDICAL_STAFF')}
-                      className="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-teal-300 border border-teal-900 font-semibold text-left transition-all"
+                      className="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-teal-300 border border-teal-900 font-semibold text-center transition-all"
                     >
-                      🩺 Doctor (Jenkins)
+                      🩺 Doctor
                     </button>
                     <button
                       type="button"
                       onClick={() => handleQuickLogin('admin@sece.ac.in', 'ADMIN')}
-                      className="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-indigo-300 border border-indigo-900 font-semibold text-left transition-all"
+                      className="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-indigo-300 border border-indigo-900 font-semibold text-center transition-all"
                     >
-                      🛡️ Administrator
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLogin('researcher@sece.ac.in', 'RESEARCHER')}
-                      className="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-purple-300 border border-purple-900 font-semibold text-left transition-all"
-                    >
-                      🧠 Researcher (AI)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLogin('responder@sece.ac.in', 'EMERGENCY_RESPONDER')}
-                      className="p-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-rose-300 border border-rose-900 font-semibold text-left transition-all col-span-2 sm:col-span-1"
-                    >
-                      🚨 First Responder
+                      🛡️ Admin
                     </button>
                   </div>
                 </div>
@@ -427,13 +411,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 {/* Role Selection */}
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-200">Account Type</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {[
                       { r: 'STUDENT' as Role, label: 'Student', icon: <GraduationCap className="w-4 h-4" />, color: 'emerald' },
                       { r: 'MEDICAL_STAFF' as Role, label: 'Medical Staff', icon: <Stethoscope className="w-4 h-4" />, color: 'teal' },
                       { r: 'ADMIN' as Role, label: 'Admin', icon: <ShieldCheck className="w-4 h-4" />, color: 'indigo' },
-                      { r: 'RESEARCHER' as Role, label: 'Researcher', icon: <Brain className="w-4 h-4" />, color: 'purple' },
-                      { r: 'EMERGENCY_RESPONDER' as Role, label: 'First Responder', icon: <ShieldAlert className="w-4 h-4" />, color: 'rose' },
                     ].map(({ r, label, icon, color }) => (
                       <button
                         key={r}
