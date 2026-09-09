@@ -218,9 +218,12 @@ export function App() {
     return 'theme-admin';
   };
 
-  const studentId = currentUser.studentId || '';
-  const activeRx = studentId ? healthStore.getPrescriptionsForStudent(studentId)[0] : undefined;
-  const v1 = activeRx?.history[activeRx.history.length - 1];
+  const studentId = currentUser?.studentId || '';
+  const rxList = studentId ? healthStore.getPrescriptionsForStudent(studentId) : [];
+  const activeRx = Array.isArray(rxList) && rxList.length > 0 ? rxList[0] : undefined;
+  const v1 = activeRx?.history && Array.isArray(activeRx.history) && activeRx.history.length > 0
+    ? activeRx.history[activeRx.history.length - 1]
+    : undefined;
   const v2 = activeRx?.currentVersion;
 
   if (!isAuthenticated || currentTab === 'login') {

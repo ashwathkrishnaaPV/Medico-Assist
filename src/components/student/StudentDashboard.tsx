@@ -119,21 +119,21 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate, 
             </div>
             {activeRx && (
               <span className="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 text-[10px] font-bold border border-purple-200 dark:border-purple-800">
-                Active v{activeRx.currentVersion.version}
+                Active v{activeRx.currentVersion?.version || 1}
               </span>
             )}
           </div>
-          {activeRx ? (
+          {activeRx && activeRx.currentVersion ? (
             <div className="space-y-2 text-xs">
               <p className="text-slate-500 dark:text-slate-400">Issued by <span className="font-bold text-slate-800 dark:text-slate-200">{activeRx.doctorName}</span></p>
-              {activeRx.currentVersion.items.slice(0, 2).map((item, i) => (
+              {(activeRx.currentVersion.items || []).slice(0, 2).map((item, i) => (
                 <div key={i} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                   <div className="font-bold text-slate-900 dark:text-white">{item.medicineName}</div>
                   <div className="text-slate-600 dark:text-slate-300 text-[11px] mt-0.5">{item.dosage} · {item.frequency}</div>
                 </div>
               ))}
-              {activeRx.currentVersion.items.length > 2 && (
-                <p className="text-[11px] text-purple-600 dark:text-purple-400 font-bold">+{activeRx.currentVersion.items.length - 2} more item(s)</p>
+              {(activeRx.currentVersion.items?.length || 0) > 2 && (
+                <p className="text-[11px] text-purple-600 dark:text-purple-400 font-bold">+{(activeRx.currentVersion.items?.length || 0) - 2} more item(s)</p>
               )}
               <button onClick={() => onNavigate('student-prescriptions')} className="flex items-center gap-1 text-purple-600 dark:text-purple-400 font-bold text-xs pt-1 hover:underline">
                 View full prescription <ChevronRight className="w-3 h-3" />
@@ -161,7 +161,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate, 
               <p className="text-slate-700 dark:text-slate-300 font-medium">{nutritionPlan.goal}</p>
               <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
                 <div className="font-bold text-emerald-800 dark:text-emerald-300 text-[11px] uppercase mb-1">Breakfast</div>
-                <p className="text-slate-700 dark:text-slate-300">{nutritionPlan.meals.breakfast[0]}</p>
+                <p className="text-slate-700 dark:text-slate-300">{nutritionPlan.meals?.breakfast?.[0] || 'Personalized wellness plan'}</p>
               </div>
               <button onClick={() => onNavigate('student-nutrition')} className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-xs pt-1 hover:underline">
                 View full meal plan <ChevronRight className="w-3 h-3" />
@@ -179,12 +179,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate, 
               <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Next Appointment
             </div>
           </div>
-          {calendarEvents.length > 0 ? (
+          {calendarEvents && calendarEvents.length > 0 && calendarEvents[0] ? (
             <div className="space-y-2 text-xs">
               <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800">
-                <div className="font-bold text-slate-900 dark:text-white">{calendarEvents[0].title}</div>
+                <div className="font-bold text-slate-900 dark:text-white">{calendarEvents[0].title || 'Appointment'}</div>
                 <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400 mt-1 font-bold">
-                  <Clock className="w-3 h-3" /> {calendarEvents[0].date} · {calendarEvents[0].time}
+                  <Clock className="w-3 h-3" /> {calendarEvents[0].date || ''} {calendarEvents[0].time ? `· ${calendarEvents[0].time}` : ''}
                 </div>
                 {calendarEvents[0].notes && <p className="text-slate-500 dark:text-slate-400 text-[11px] mt-1">{calendarEvents[0].notes}</p>}
               </div>

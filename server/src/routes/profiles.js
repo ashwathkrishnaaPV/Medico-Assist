@@ -1,13 +1,22 @@
-﻿const router = require('express').Router();
+const router = require('express').Router();
 const { getModel } = require('../models/provider');
 const { authenticate, authorizeRoles, verifyOwnershipOrRole } = require('../middleware/rbac');
 
-// GET /api/profiles (Only Clinicians and Administrators can view all profiles)
-router.get('/', authenticate, authorizeRoles('MEDICAL_STAFF', 'ADMIN'), async (req, res) => {
+// GET /api/profiles (Clinicians/Admins view all; Students view their own profile)
+router.get('/', authenticate, async (req, res) => {
   try {
     const StudentProfile = getModel('StudentProfile');
-    const profiles = await StudentProfile.find({});
-    res.json(profiles);
+    if (req.user.role === 'STUDENT') {
+      const studentId = req.user.studentId;
+      if (!studentId) return res.json([]);
+      const profile = await StudentProfile.findOne({ studentId });
+      return res.json(profile ? [profile] : []);
+    }
+    if (['MEDICAL_STAFF', 'ADMIN'].includes(req.user.role)) {
+      const profiles = await StudentProfile.find({});
+      return res.json(profiles);
+    }
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Access denied for this role.' } });
   } catch (err) {
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
   }

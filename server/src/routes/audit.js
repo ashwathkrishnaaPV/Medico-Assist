@@ -1,13 +1,26 @@
-﻿const router = require('express').Router();
+const router = require('express').Router();
 const { getModel } = require('../models/provider');
 const { authenticate, authorizeRoles } = require('../middleware/rbac');
 
-// GET /api/audit (ADMIN ONLY)
-router.get('/', authenticate, authorizeRoles('ADMIN'), async (req, res) => {
+// GET /api/audit (ADMIN views all logs; STUDENTS view their own access logs)
+router.get('/', authenticate, async (req, res) => {
   try {
     const AuditLog = getModel('AuditLog');
-    const logs = await AuditLog.find({});
-    res.json(logs);
+    if (req.user.role === 'ADMIN') {
+      const logs = await AuditLog.find({});
+      return res.json(logs);
+    }
+    if (req.user.role === 'STUDENT') {
+      const studentId = req.user.studentId;
+      const logs = await AuditLog.find({
+        $or: [
+          { resource: studentId },
+          { userId: req.user.id }
+        ]
+      });
+      return res.json(logs);
+    }
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Access denied.' } });
   } catch (err) {
     res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
   }
