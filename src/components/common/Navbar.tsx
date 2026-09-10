@@ -176,7 +176,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onNavigate, onOpenEm
                 className="w-9 h-9 rounded-full bg-emerald-500 dark:bg-emerald-600 text-white font-extrabold text-sm flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-transform focus:outline-none"
                 title={currentUser.name}
               >
-                {currentUser.name.charAt(0).toUpperCase()}
+                {(currentUser?.name || 'User').charAt(0).toUpperCase()}
               </button>
 
               {/* Dropdown — floats above the backdrop */}

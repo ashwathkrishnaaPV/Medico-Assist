@@ -1,6 +1,11 @@
-﻿const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 
 let isConnected = false;
+
+// Attach error listener to connection to prevent unhandled error event crashes
+mongoose.connection.on('error', (err) => {
+  console.warn('⚠️ Mongoose background event notice:', err.message);
+});
 
 const connectDB = async () => {
   if (!process.env.MONGO_URI) {
@@ -18,6 +23,7 @@ const connectDB = async () => {
     return true;
   } catch (err) {
     isConnected = false;
+    try { await mongoose.disconnect(); } catch (_) {}
     console.warn('⚠️ MongoDB Atlas unreachable (port 27017 restricted on this network).');
     console.log('⚡ Active mode: Local persistent database (server/data/campushealth_db.json). Ready for all requests!');
     return false;

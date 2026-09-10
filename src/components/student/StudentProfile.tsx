@@ -45,7 +45,7 @@ export const StudentProfile: React.FC = () => {
       <div className="flex items-center justify-between bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 font-extrabold text-2xl flex items-center justify-center border border-emerald-200 dark:border-emerald-700">
-            {profile.name.charAt(0)}
+            {(profile?.name || 'Student').charAt(0)}
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{profile.name}</h1>
