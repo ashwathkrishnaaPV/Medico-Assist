@@ -68,8 +68,19 @@ function createApp() {
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
   app.use(sanitizeRequest);
 
-  // Global rate limiting & CSRF verification for cookie sessions
+  // Global rate limiting, serverless DB readiness & CSRF verification for cookie sessions
   app.use('/api/', apiLimiter);
+  app.use('/api/', async (req, _res, next) => {
+    if (req.path === '/health' || req.path.startsWith('/docs')) {
+      return next();
+    }
+    try {
+      await connectDB();
+    } catch (err) {
+      console.warn('Database connection warning:', err.message);
+    }
+    return next();
+  });
   app.use('/api/', csrfProtection);
 
   // API Routes
@@ -158,4 +169,6 @@ if (require.main === module) {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
-module.exports = { app, createApp };
+app.createApp = createApp;
+app.app = app;
+module.exports = app;

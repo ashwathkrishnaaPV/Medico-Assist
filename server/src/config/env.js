@@ -37,6 +37,13 @@ const rawOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://1
   .map((o) => o.trim())
   .filter(Boolean);
 
+if (process.env.VERCEL_URL) {
+  rawOrigins.push(`https://${process.env.VERCEL_URL}`);
+}
+if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+  rawOrigins.push(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+}
+
 module.exports = {
   port: Number(process.env.PORT) || 3001,
   nodeEnv,
