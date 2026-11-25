@@ -30,8 +30,14 @@ function isTokenRevoked(jti) {
 
 function signAuthToken(user) {
   const jti = crypto.randomUUID();
+  const safeId =
+    (user._id && String(user._id) !== 'null' ? String(user._id) : '') ||
+    (user.id && String(user.id) !== 'null' ? String(user.id) : '') ||
+    user.studentId ||
+    user.staffId ||
+    user.email;
   const payload = {
-    id: String(user._id || user.id),
+    id: safeId,
     role: user.role,
     email: user.email,
     studentId: user.studentId || undefined,

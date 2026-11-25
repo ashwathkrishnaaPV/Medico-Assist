@@ -31,7 +31,13 @@ const authenticate = async (req, res, next) => {
     // Verify account remains active and tokenVersion has not been invalidated
     const User = getModel('User');
     if (User && (typeof User.findById === 'function' || typeof User.findOne === 'function')) {
-      const dbUser = await findByIdentifier(User, decoded.id);
+      let dbUser =
+        decoded.id && decoded.id !== 'null' && decoded.id !== 'undefined'
+          ? await findByIdentifier(User, decoded.id)
+          : null;
+      if (!dbUser && decoded.email && typeof User.findOne === 'function') {
+        dbUser = await User.findOne({ email: String(decoded.email).toLowerCase() });
+      }
       if (!dbUser || dbUser.active === false) {
         return res.status(401).json({
           success: false,
@@ -44,8 +50,14 @@ const authenticate = async (req, res, next) => {
           error: { code: 'SESSION_INVALIDATED', message: 'Session has expired or been logged out. Please sign in again.' }
         });
       }
+      const resolvedId =
+        (dbUser._id && String(dbUser._id) !== 'null' ? String(dbUser._id) : '') ||
+        (dbUser.id && String(dbUser.id) !== 'null' ? String(dbUser.id) : '') ||
+        dbUser.studentId ||
+        dbUser.staffId ||
+        dbUser.email;
       req.user = {
-        id: String(dbUser._id || dbUser.id),
+        id: resolvedId,
         role: dbUser.role,
         email: dbUser.email,
         studentId: dbUser.studentId,
