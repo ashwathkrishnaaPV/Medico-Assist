@@ -12,6 +12,14 @@ const { apiLimiter } = require('./middleware/rateLimiter');
 const { sanitizeRequest } = require('./utils/sanitize');
 const { csrfProtection } = require('./middleware/csrf');
 
+function isOriginAllowed(origin, allowedOrigins) {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  // Allow Vercel preview & production deployments for this project
+  if (/^https:\/\/medico-assist(-[a-z0-9-]+)*\.vercel\.app$/.test(origin)) return true;
+  return false;
+}
+
 function createApp() {
   const app = express();
   const allowedOrigins = Array.isArray(env?.allowedOrigins) ? env.allowedOrigins : [];
@@ -49,7 +57,7 @@ function createApp() {
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (isOriginAllowed(origin, allowedOrigins)) {
           callback(null, true);
         } else {
           const corsErr = new Error(`Origin '${origin}' is not allowed by CORS policy.`);
