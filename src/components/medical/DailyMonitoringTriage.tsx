@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, CheckSquare, AlertTriangle, CheckCircle2, User, Stethoscope } from 'lucide-react';
+import { Activity, CheckSquare } from 'lucide-react';
 import { healthStore } from '../../services/healthStore';
 import { authService } from '../../services/authService';
 import { DailyMonitoringPlan, DailyMonitoringResponse, StudentProfileData } from '../../types';
@@ -8,9 +8,9 @@ interface DailyMonitoringTriageProps {
   onNavigate: (tab: string) => void;
 }
 
-export const DailyMonitoringTriage: React.FC<DailyMonitoringTriageProps> = ({ onNavigate }) => {
+export const DailyMonitoringTriage: React.FC<DailyMonitoringTriageProps> = ({ onNavigate: _onNavigate }) => {
   const [allProfiles, setAllProfiles] = useState<StudentProfileData[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [selectedStudentId, setSelectedStudentId] = useState<string>(() => healthStore.getActiveDoctorPatientId() || '');
   const [monitoringPlan, setMonitoringPlan] = useState<DailyMonitoringPlan | undefined>();
   const [responses, setResponses] = useState<DailyMonitoringResponse[]>([]);
 
@@ -19,22 +19,22 @@ export const DailyMonitoringTriage: React.FC<DailyMonitoringTriageProps> = ({ on
       const list = healthStore.getAllStudentProfiles();
       setAllProfiles(list);
 
-      let targetId = selectedStudentId;
-      if (list.length > 0 && !targetId) {
-        targetId = list[0].studentId;
-        setSelectedStudentId(targetId);
-      }
+      const activeId = healthStore.getActiveDoctorPatientId();
+      setSelectedStudentId(activeId);
 
-      if (targetId) {
-        setMonitoringPlan(healthStore.getMonitoringPlan(targetId));
-        setResponses(healthStore.getMonitoringResponses(targetId));
+      if (activeId) {
+        setMonitoringPlan(healthStore.getMonitoringPlan(activeId));
+        setResponses(healthStore.getMonitoringResponses(activeId));
+      } else {
+        setMonitoringPlan(undefined);
+        setResponses([]);
       }
     };
 
     load();
     const unsub = healthStore.subscribe(load);
     return () => unsub();
-  }, [selectedStudentId]);
+  }, []);
 
   const latestResp = responses[0];
 
@@ -57,23 +57,30 @@ export const DailyMonitoringTriage: React.FC<DailyMonitoringTriageProps> = ({ on
           <label className="text-xs font-bold text-slate-400">Patient:</label>
           <select
             value={selectedStudentId}
-            onChange={e => setSelectedStudentId(e.target.value)}
+            onChange={e => {
+              const val = e.target.value;
+              setSelectedStudentId(val);
+              healthStore.setActiveDoctorPatientId(val);
+            }}
             className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
           >
-            {allProfiles.length === 0 ? (
-              <option value="">No students in database</option>
-            ) : (
-              allProfiles.map(p => (
-                <option key={p.studentId} value={p.studentId}>
-                  {p.studentId} — {p.name}
-                </option>
-              ))
-            )}
+            <option value="">-- Select Patient --</option>
+            {allProfiles.map(p => (
+              <option key={p.studentId} value={p.studentId}>
+                {p.studentId} — {p.name}
+              </option>
+            ))}
           </select>
         </div>
       </div>
 
-      {allProfiles.length === 0 ? (
+      {!selectedStudentId ? (
+        <div className="p-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-2">
+          <Activity className="w-12 h-12 mx-auto text-rose-500" />
+          <h3 className="font-bold text-slate-700 dark:text-slate-200 text-base">No Patient Selected</h3>
+          <p className="text-xs">Please select a student from the dropdown above to triage daily monitoring protocols and responses.</p>
+        </div>
+      ) : allProfiles.length === 0 ? (
         <div className="p-12 text-center text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-2">
           <Activity className="w-12 h-12 mx-auto text-rose-500" />
           <h3 className="font-bold text-slate-700 dark:text-slate-200 text-base">No Students Registered</h3>
@@ -86,13 +93,13 @@ export const DailyMonitoringTriage: React.FC<DailyMonitoringTriageProps> = ({ on
           <div className="lg:col-span-5 space-y-4">
             <div className="card-clinical p-6 space-y-4">
               <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <CheckSquare className="w-4 h-4 text-emerald-600" /> Active Monitoring Protocol
+                <CheckSquare className="w-4 h-4 text-blue-600" /> Active Monitoring Protocol
               </h3>
 
               {monitoringPlan ? (
                 <div className="space-y-3 text-xs">
-                  <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400">Condition</span>
+                  <div className="p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-blue-700 dark:text-blue-400">Condition</span>
                     <p className="font-extrabold text-slate-800 dark:text-slate-100 text-sm">{monitoringPlan.conditionName}</p>
                     <p className="text-slate-500">Day {monitoringPlan.currentDay} of {monitoringPlan.durationDays} · Initiated by {monitoringPlan.createdBy}</p>
                   </div>
@@ -102,7 +109,7 @@ export const DailyMonitoringTriage: React.FC<DailyMonitoringTriageProps> = ({ on
                       <div className="flex items-center justify-between font-bold">
                         <span>Latest Response ({latestResp.date})</span>
                         <span className={`px-2 py-0.5 rounded-md text-[10px] ${
-                          latestResp.status === 'Improving' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          latestResp.status === 'Improving' ? 'bg-blue-100 text-blue-800' : 'bg-rose-100 text-rose-800'
                         }`}>
                           {latestResp.status}
                         </span>
@@ -122,12 +129,12 @@ export const DailyMonitoringTriage: React.FC<DailyMonitoringTriageProps> = ({ on
                   <button
                     onClick={() => {
                       if (selectedStudentId) {
-                        healthStore.activateMonitoringPlan(selectedStudentId, 'Post-Consultation Recovery', 7, authService.getCurrentUser().name || 'Dr. Medical Staff');
+                        healthStore.activateMonitoringPlan(selectedStudentId, 'Post-Consultation Recovery', 3, authService.getCurrentUser().name || 'Dr. Nivetha M.B.B.S');
                       }
                     }}
-                    className="w-full py-2.5 rounded-xl bg-teal-600 text-white font-bold text-xs shadow-md shadow-teal-600/20"
+                    className="w-full py-2.5 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md shadow-sky-600/20"
                   >
-                    Initiate 7-Day Monitoring Check
+                    Initiate 3-Day Monitoring Check
                   </button>
                 </div>
               )}
@@ -137,7 +144,7 @@ export const DailyMonitoringTriage: React.FC<DailyMonitoringTriageProps> = ({ on
           {/* Monitoring Responses History */}
           <div className="lg:col-span-7 card-clinical p-6 space-y-4">
             <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-teal-600" /> Historical Check-in Submissions ({responses.length})
+              <Activity className="w-4 h-4 text-sky-600" /> Historical Check-in Submissions ({responses.length})
             </h3>
 
             {responses.length === 0 ? (
@@ -151,7 +158,7 @@ export const DailyMonitoringTriage: React.FC<DailyMonitoringTriageProps> = ({ on
                       {r.studentFeedback && <p className="text-[11px] text-slate-400 italic">"{r.studentFeedback}"</p>}
                     </div>
                     <span className={`px-2.5 py-1 rounded-md font-bold text-[10px] ${
-                      r.status === 'Improving' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                      r.status === 'Improving' ? 'bg-blue-100 text-blue-800' : 'bg-rose-100 text-rose-800'
                     }`}>
                       {r.status}
                     </span>

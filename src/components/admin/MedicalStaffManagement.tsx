@@ -20,9 +20,11 @@ export const MedicalStaffManagement: React.FC = () => {
       <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <Stethoscope className="w-6 h-6 text-teal-600 dark:text-teal-400" /> Medical Centre Staff & Clinicians
+            <Stethoscope className="w-6 h-6 text-sky-600 dark:text-sky-400" /> Medical Doctor & Clinician Directory
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Manage clinician accounts, credentials, and prescription authorization levels.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Registered campus physician account, credentials, and clinical prescription authorization.
+          </p>
         </div>
       </div>
 
@@ -49,13 +51,13 @@ export const MedicalStaffManagement: React.FC = () => {
               ) : (
                 staff.map(s => (
                   <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="p-3 font-mono font-bold text-teal-600 dark:text-teal-400">{s.staffId || 'DOC001'}</td>
+                    <td className="p-3 font-mono font-bold text-sky-600 dark:text-sky-400">{s.staffId || 'DOC001'}</td>
                     <td className="p-3 font-bold text-slate-900 dark:text-white">{s.name}</td>
                     <td className="p-3">{s.email}</td>
                     <td className="p-3">{s.title || 'Campus Physician'}</td>
                     <td className="p-3">{s.department || 'General Medicine'}</td>
                     <td className="p-3">
-                      <span className="px-2.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold text-[10px] border border-emerald-200 dark:border-emerald-800">AUTHORIZED</span>
+                      <span className="px-2.5 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 font-bold text-[10px] border border-blue-200 dark:border-blue-800">AUTHORIZED</span>
                     </td>
                   </tr>
                 ))

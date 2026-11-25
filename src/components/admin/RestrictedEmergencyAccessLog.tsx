@@ -71,7 +71,7 @@ export const RestrictedEmergencyAccessLog: React.FC = () => {
             </div>
             <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
               <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-semibold">Emergency Phone</span>
-              <span className="font-bold text-teal-700 dark:text-teal-300">{simulatedView.emergencyContact.phone}</span>
+              <span className="font-bold text-sky-700 dark:text-sky-300">{simulatedView.emergencyContact.phone}</span>
             </div>
           </div>
 
@@ -84,7 +84,7 @@ export const RestrictedEmergencyAccessLog: React.FC = () => {
       {/* Emergency Audit Log Table */}
       <div className="card-enterprise p-6 space-y-4">
         <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Audit Log of Emergency Scans ({emergencyLogs.length})
+          <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Audit Log of Emergency Scans ({emergencyLogs.length})
         </h3>
 
         <div className="space-y-2 text-xs font-mono">

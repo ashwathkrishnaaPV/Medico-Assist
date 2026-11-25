@@ -4,12 +4,17 @@
 @layer base {
   :root {
     --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --navy: #0A1931;
+    --marine: #1A3D63;
+    --steel: #4A7FA7;
+    --ice: #B3CFE5;
+    --light: #F6FAFD;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: #F6FAFD;
+    color: #0A1931;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -17,13 +22,42 @@
   html.dark body,
   .dark body,
   :root.dark body {
-    background-color: #090d16;
-    color: #f1f5f9;
+    background-color: #0A1931;
+    color: #F6FAFD;
   }
 
   .dark {
     color-scheme: dark;
   }
+}
+
+/* Cylindrical Capsule Design System */
+.cylinder-capsule {
+  border-radius: 9999px !important;
+  border: 1.5px solid #B3CFE5;
+  box-shadow: 0 6px 20px -3px rgba(10, 25, 49, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+.cylinder-button {
+  border-radius: 9999px !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cylinder-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px -4px rgba(26, 61, 99, 0.25);
+}
+
+.cylinder-input {
+  border-radius: 9999px !important;
+  border: 1.5px solid #B3CFE5;
+  transition: all 0.2s ease-in-out;
+}
+
+.cylinder-input:focus {
+  border-color: #1A3D63;
+  box-shadow: 0 0 0 4px rgba(26, 61, 99, 0.12);
+  outline: none;
 }
 
 /* Custom Card Component Classes for Panels */
@@ -94,20 +128,20 @@
   background: #475569;
 }
 
-/* Tone-matched Panel Themes */
+/* Tone-matched Panel Themes - CarePlus Medical Palette */
 .theme-student {
-  --primary-color: #059669;
-  --accent-color: #0d9488;
+  --primary-color: #1A3D63;
+  --accent-color: #4A7FA7;
 }
 
 .theme-medical {
-  --primary-color: #0d9488;
-  --accent-color: #0284c7;
+  --primary-color: #0A1931;
+  --accent-color: #1A3D63;
 }
 
 .theme-admin {
-  --primary-color: #1e3a8a;
-  --accent-color: #4f46e5;
+  --primary-color: #0A1931;
+  --accent-color: #4A7FA7;
 }
 
 /* Keyframe Animations */

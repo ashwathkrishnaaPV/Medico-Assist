@@ -5,19 +5,14 @@ import {
   CheckCircle2,
   AlertTriangle,
   Lock,
-  PhoneCall,
-  Clock,
-  Heart,
-  FileCheck,
   Search
 } from 'lucide-react';
 import { emergencyService } from '../../services/emergencyService';
-import { EmergencyVerificationResult, EmergencyMetrics } from '../../types';
+import { EmergencyVerificationResult } from '../../types';
 
 export const EmergencyResponderPortal: React.FC = () => {
   const [tokenInput, setTokenInput] = useState('');
   const [result, setResult] = useState<EmergencyVerificationResult | null>(null);
-  const [metrics, setMetrics] = useState<EmergencyMetrics | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,8 +30,6 @@ export const EmergencyResponderPortal: React.FC = () => {
         responderId: 'EMS_RESPONDER_DESK'
       });
       setResult(data);
-      const m = await emergencyService.getMetrics();
-      setMetrics(m);
     } catch (err: any) {
       setError(err.message || 'Token verification failed. Please check if token is valid or expired.');
       setResult(null);
@@ -96,7 +89,7 @@ export const EmergencyResponderPortal: React.FC = () => {
         {error && (
           <div className="p-3 bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 rounded-2xl text-xs text-rose-800 dark:text-rose-200 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
-            <span>{error}</span>
+            <span>{typeof error === 'string' ? error : (error as any)?.message || String(error)}</span>
           </div>
         )}
       </div>
@@ -105,24 +98,24 @@ export const EmergencyResponderPortal: React.FC = () => {
       {result && (
         <div className="space-y-6 animate-fade-in">
           {/* Disclosure Metrics Banner */}
-          <div className="p-5 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="p-5 rounded-3xl bg-blue-50 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-800 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+              <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-emerald-900 dark:text-emerald-100">
+                <h3 className="font-bold text-sm text-blue-900 dark:text-blue-100">
                   Minimum Necessary Dataset Released
                 </h3>
-                <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
                   Audit Entry Recorded · Latency: {result.accessMetadata.latencyMs}ms · Hash: {result.accessMetadata.tokenHashPrefix}
                 </p>
               </div>
             </div>
 
             <div className="text-right">
-              <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold uppercase block">Privacy Score</span>
-              <span className="text-base font-extrabold text-emerald-800 dark:text-emerald-200">
+              <span className="text-[10px] text-blue-700 dark:text-blue-400 font-bold uppercase block">Privacy Score</span>
+              <span className="text-base font-extrabold text-blue-800 dark:text-blue-200">
                 85.4% Withheld
               </span>
             </div>
@@ -184,7 +177,7 @@ export const EmergencyResponderPortal: React.FC = () => {
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Campus Medical Centre</span>
                 <div className="text-xs text-slate-600 dark:text-slate-400">
                   <div>Sri Eshwar Health & Triage Desk</div>
-                  <div className="font-mono text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">{result.medicalCentreContact}</div>
+                  <div className="font-mono text-blue-600 dark:text-blue-400 font-bold mt-0.5">{result.medicalCentreContact}</div>
                 </div>
               </div>
             </div>

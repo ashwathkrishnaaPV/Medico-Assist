@@ -11,7 +11,6 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const {
-  evaluateRuleBasedNEWS2,
   evaluateMLRiskStratification,
   evaluateDualRisk
 } = require('../src/services/clinicalRiskEngine');

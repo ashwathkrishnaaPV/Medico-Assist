@@ -44,7 +44,7 @@ export const StudentProfile: React.FC = () => {
       {/* Header Banner */}
       <div className="flex items-center justify-between bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 font-extrabold text-2xl flex items-center justify-center border border-emerald-200 dark:border-emerald-700">
+          <div className="w-16 h-16 rounded-2xl bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 font-extrabold text-2xl flex items-center justify-center border border-blue-200 dark:border-blue-700">
             {(profile?.name || 'Student').charAt(0)}
           </div>
           <div>
@@ -58,7 +58,7 @@ export const StudentProfile: React.FC = () => {
               {profile.ugOrPg && (
                 <>
                   <span className="text-gray-300 dark:text-gray-600">·</span>
-                  <span className="px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300 text-xs font-bold">{profile.ugOrPg}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 text-xs font-bold">{profile.ugOrPg}</span>
                 </>
               )}
             </p>
@@ -106,7 +106,7 @@ export const StudentProfile: React.FC = () => {
         {/* Personal Details */}
         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-200 dark:border-gray-700 space-y-4">
           <h3 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2">
-            <User className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span>Personal Information</span>
           </h3>
           <div className="space-y-2.5">
@@ -121,7 +121,7 @@ export const StudentProfile: React.FC = () => {
         {/* Academic & Accommodation */}
         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-gray-200 dark:border-gray-700 space-y-4">
           <h3 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+            <BookOpen className="w-4 h-4 text-sky-600 dark:text-sky-400" />
             <span>Academic & Accommodation</span>
           </h3>
           <div className="space-y-2.5">
@@ -161,8 +161,8 @@ export const StudentProfile: React.FC = () => {
               )}
             </div>
 
-            <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950 border border-teal-200 dark:border-teal-800 space-y-1">
-              <span className="text-xs uppercase font-bold text-teal-600 dark:text-teal-400 tracking-wider">Campus Medical Centre</span>
+            <div className="p-4 rounded-2xl bg-sky-50 dark:bg-sky-950 border border-sky-200 dark:border-sky-800 space-y-1">
+              <span className="text-xs uppercase font-bold text-sky-600 dark:text-sky-400 tracking-wider">Campus Medical Centre</span>
               <p className="font-semibold text-gray-900 dark:text-white text-sm">{profile.medicalCentreContact}</p>
             </div>
           </div>
@@ -227,7 +227,7 @@ export const StudentProfile: React.FC = () => {
 
             {/* Medications */}
             <div>
-              <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-1.5">Active Medications</p>
+              <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1.5">Active Medications</p>
               <div className="space-y-0.5">
                 {profile.criticalMedications?.length > 0
                   ? profile.criticalMedications.map((m, i) => (

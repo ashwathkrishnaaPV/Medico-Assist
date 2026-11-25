@@ -1,196 +1,616 @@
-﻿const router = require('express').Router();
-const jwt = require('jsonwebtoken');
+const router = require('express').Router();
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { getModel } = require('../models/provider');
-const { authenticate, authorizeRoles, getJwtSecret } = require('../middleware/rbac');
+const env = require('../config/env');
+const { authenticate, authorizeRoles } = require('../middleware/rbac');
 const { authLimiter } = require('../middleware/rateLimiter');
+const { validate } = require('../middleware/validate');
+const {
+  registerSchema,
+  loginSchema,
+  changePasswordSchema,
+  adminCreateUserSchema,
+  adminUpdateRoleSchema,
+  adminUpdateStatusSchema
+} = require('../schemas/validationSchemas');
+const {
+  signAuthToken,
+  revokeToken,
+  setSessionCookies,
+  clearSessionCookies,
+  getCsrfCookieOptions
+} = require('../services/tokenService');
+const {
+  checkLockout,
+  recordFailedAttempt,
+  clearFailedAttempts
+} = require('../services/bruteForceService');
+const { logAuditEvent } = require('../services/auditService');
+const { findByIdentifier, updateByIdentifier } = require('../utils/dbHelpers');
 
-const signToken = (user) => jwt.sign(
-  {
-    id: user._id || user.id,
-    role: user.role,
+function sanitizeUser(user) {
+  if (!user) return null;
+  return {
+    id: String(user._id || user.id),
+    name: user.name,
     email: user.email,
+    role: user.role,
     studentId: user.studentId,
     staffId: user.staffId,
-    name: user.name
-  },
-  getJwtSecret(),
-  { expiresIn: '7d' }
-);
+    department: user.department,
+    title: user.title,
+    active: user.active !== false
+  };
+}
 
-// POST /api/auth/register (Rate-limited)
-router.post('/register', authLimiter, async (req, res) => {
+// GET /api/auth/csrf-token — Issue CSRF double-submit cookie cleanly
+router.get('/csrf-token', (req, res) => {
+  const existing = req.cookies && req.cookies[env.csrfCookieName];
+  const csrfToken = existing || crypto.randomBytes(32).toString('hex');
+  if (!existing) {
+    res.cookie(env.csrfCookieName, csrfToken, getCsrfCookieOptions());
+  }
+  res.json({
+    success: true,
+    message: 'CSRF token ready.',
+    data: { csrfToken }
+  });
+});
+
+// POST /api/auth/register — Public self-registration strictly locked to STUDENT role
+router.post('/register', authLimiter, validate({ body: registerSchema }), async (req, res) => {
   try {
     const User = getModel('User');
-    const { name, email, password, role = 'STUDENT', studentId, staffId, department, title } = req.body;
-
-    if (!email || !name) {
-      return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Name and email are required.' } });
-    }
-
-    if (password && password.length < 6) {
-      return res.status(400).json({ success: false, error: { code: 'WEAK_PASSWORD', message: 'Password must be at least 6 characters long.' } });
-    }
-
-    // Role restrictions for public registration
-    const validRoles = ['STUDENT', 'MEDICAL_STAFF', 'ADMIN', 'RESEARCHER', 'EMERGENCY_RESPONDER'];
-    const assignedRole = validRoles.includes(role) ? role : 'STUDENT';
+    const StudentProfile = getModel('StudentProfile');
+    const {
+      name,
+      email,
+      password,
+      studentId,
+      department = 'Computer and Communication Engineering (CCE)',
+      phone = '',
+      age,
+      gender = 'Male',
+      year = '1st Year'
+    } = req.body;
 
     const normalizedEmail = email.toLowerCase().trim();
-    const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) {
-      return res.status(409).json({ success: false, error: { code: 'USER_EXISTS', message: 'An account already exists with this email address.' } });
+    const assignedStudentId = studentId && studentId.trim()
+      ? studentId.trim().toUpperCase()
+      : `STU_${Date.now().toString().slice(-6)}`;
+
+    const existingEmail = await User.findOne({ email: normalizedEmail });
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'DUPLICATE_ACCOUNT', message: 'An account with these details already exists.' }
+      });
     }
 
+    const existingId =
+      (await User.findOne({ studentId: assignedStudentId })) ||
+      (StudentProfile && (await StudentProfile.findOne({ studentId: assignedStudentId })));
+    if (existingId) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'DUPLICATE_STUDENT_ID', message: `Student ID "${assignedStudentId}" is already registered.` }
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
-      password: password || 'DefaultPass@123',
-      role: assignedRole,
-      studentId: studentId ? studentId.trim() : (assignedRole === 'STUDENT' ? 'STU_' + Date.now().toString().slice(-4) : undefined),
-      staffId: staffId ? staffId.trim() : undefined,
-      department: department ? department.trim() : 'General',
-      title: title ? title.trim() : undefined
+      password: hashedPassword,
+      role: 'STUDENT',
+      studentId: assignedStudentId,
+      phone: phone ? String(phone).trim() : undefined,
+      department: department.trim(),
+      active: true,
+      tokenVersion: 0
     });
 
-    const token = signToken(user);
-    const sanitizedUser = {
-      id: user._id || user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      studentId: user.studentId,
-      staffId: user.staffId,
-      department: user.department,
-      title: user.title
-    };
+    if (StudentProfile) {
+      await StudentProfile.findOneAndUpdate(
+        { studentId: assignedStudentId },
+        {
+          studentId: assignedStudentId,
+          userId: String(user._id || user.id),
+          name: name.trim(),
+          email: normalizedEmail,
+          age: age || 19,
+          dob: '',
+          gender,
+          department: department.trim(),
+          year,
+          ugOrPg: 'UG',
+          accommodation: '',
+          hostelBlock: '',
+          hostelRoom: '',
+          phone: phone ? String(phone).trim() : '',
+          bloodGroup: '',
+          emergencyContact: { name: '', relation: 'Father', phone: '' },
+          medicalCentreContact: '+91-44-2257-0000',
+          criticalAllergies: [],
+          criticalConditions: [],
+          criticalMedications: [],
+          heightCm: 0,
+          weightKg: 0,
+          bmi: 0,
+          lastUpdated: new Date().toISOString().split('T')[0],
+          profileComplete: false
+        },
+        { upsert: true, new: true }
+      );
+    }
 
-    res.status(201).json({
+    const token = signAuthToken(user);
+    const csrfToken = setSessionCookies(res, token);
+    const safeUser = sanitizeUser(user);
+
+    await logAuditEvent(req, {
+      action: 'USER_REGISTERED',
+      resourceType: 'USER',
+      resource: safeUser.id,
+      details: `Student account created (${assignedStudentId})`,
+      sensitivity: 'MEDIUM',
+      outcome: 'SUCCESS',
+      actorOverride: safeUser
+    });
+
+    return res.status(201).json({
       success: true,
+      message: 'Account created successfully.',
       token,
-      user: sanitizedUser,
-      data: { token, user: sanitizedUser } // backwards compatibility with existing frontend
+      user: safeUser,
+      data: { user: safeUser, token, csrfToken }
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
+    return res.status(500).json({
+      success: false,
+      error: { code: 'REGISTRATION_ERROR', message: err.message }
+    });
   }
 });
 
-// POST /api/auth/login (Rate-limited)
-router.post('/login', authLimiter, async (req, res) => {
+// POST /api/auth/login — Strict bcrypt authentication with brute-force protection
+router.post('/login', authLimiter, validate({ body: loginSchema }), async (req, res) => {
   try {
     const User = getModel('User');
     const { email, password } = req.body;
+    const rawIdentifier = email.trim();
+    const normalizedInput = rawIdentifier.toLowerCase();
 
-    if (!email) {
-      return res.status(400).json({ success: false, error: { code: 'INVALID_INPUT', message: 'Email address is required.' } });
+    const lockout = checkLockout(normalizedInput);
+    if (lockout.locked) {
+      await logAuditEvent(req, {
+        action: 'LOGIN_BLOCKED_LOCKOUT',
+        resourceType: 'AUTH',
+        resource: normalizedInput,
+        details: `Account temporarily locked due to excessive failed login attempts`,
+        sensitivity: 'HIGH',
+        outcome: 'DENIED',
+        actorOverride: { id: 'LOCKED_ATTEMPT', name: normalizedInput, role: 'ANONYMOUS' }
+      });
+
+      return res.status(429).json({
+        success: false,
+        error: {
+          code: 'ACCOUNT_LOCKED',
+          message: `Too many failed login attempts. Try again in ${Math.ceil(lockout.remainingSeconds / 60)} minute(s).`
+        }
+      });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail });
+    let user = await User.findOne({ email: normalizedInput });
     if (!user) {
-      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'No registered account found with this email.' } });
+      user =
+        (await User.findOne({ studentId: rawIdentifier.toUpperCase() })) ||
+        (await User.findOne({ studentId: rawIdentifier })) ||
+        (await User.findOne({ registerNumber: rawIdentifier }));
     }
 
-    if (password && user.password) {
-      const isMatch = await user.comparePassword(password);
-      if (!isMatch) {
-        return res.status(401).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Incorrect password. Please verify and try again.' } });
-      }
+    const validPassword = user && user.password
+      ? await (typeof user.comparePassword === 'function'
+          ? user.comparePassword(password)
+          : bcrypt.compare(password, user.password))
+      : false;
+
+    if (!user || !validPassword) {
+      recordFailedAttempt(normalizedInput);
+      await logAuditEvent(req, {
+        action: 'LOGIN_FAILED',
+        resourceType: 'AUTH',
+        resource: normalizedInput,
+        details: 'Failed login attempt (invalid credentials)',
+        sensitivity: 'MEDIUM',
+        outcome: 'FAILURE',
+        actorOverride: { id: 'AUTH_FAILURE', name: normalizedInput, role: 'ANONYMOUS' }
+      });
+
+      return res.status(401).json({
+        success: false,
+        error: {
+          code: 'INVALID_CREDENTIALS',
+          message: 'Invalid email/ID or password.'
+        }
+      });
     }
 
-    const token = signToken(user);
-    const sanitizedUser = {
-      id: user._id || user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      studentId: user.studentId,
-      staffId: user.staffId,
-      department: user.department,
-      title: user.title
-    };
+    if (user.active === false) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'This account has been deactivated. Contact system administration.'
+        }
+      });
+    }
 
-    res.json({
+    clearFailedAttempts(normalizedInput);
+    const token = signAuthToken(user);
+    const csrfToken = setSessionCookies(res, token);
+    const safeUser = sanitizeUser(user);
+
+    await logAuditEvent(req, {
+      action: 'LOGIN_SUCCESS',
+      resourceType: 'AUTH',
+      resource: safeUser.id,
+      details: `Authenticated session started for ${safeUser.role}`,
+      sensitivity: 'LOW',
+      outcome: 'SUCCESS',
+      actorOverride: safeUser
+    });
+
+    return res.json({
       success: true,
+      message: 'Signed in successfully.',
       token,
-      user: sanitizedUser,
-      data: { token, user: sanitizedUser }
+      user: safeUser,
+      data: { user: safeUser, token, csrfToken }
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
+    return res.status(500).json({
+      success: false,
+      error: { code: 'LOGIN_ERROR', message: err.message }
+    });
   }
 });
 
-// POST /api/auth/change-password (Authenticated)
-router.post('/change-password', authenticate, async (req, res) => {
+// POST /api/auth/logout — Revokes active JWT token & clears session cookies
+router.post('/logout', authenticate, async (req, res) => {
+  try {
+    revokeToken(req.tokenDecoded);
+    clearSessionCookies(res);
+
+    await logAuditEvent(req, {
+      action: 'LOGOUT',
+      resourceType: 'AUTH',
+      resource: req.user.id,
+      details: 'Session logged out and token revoked.',
+      sensitivity: 'LOW',
+      outcome: 'SUCCESS'
+    });
+
+    return res.json({
+      success: true,
+      message: 'Logged out successfully.',
+      data: null
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: { code: 'LOGOUT_ERROR', message: err.message }
+    });
+  }
+});
+
+// POST /api/auth/change-password — Requires verified currentPassword & invalidates older tokens
+router.post('/change-password', authenticate, validate({ body: changePasswordSchema }), async (req, res) => {
   try {
     const User = getModel('User');
     const { currentPassword, newPassword } = req.body;
 
-    if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({ success: false, error: { code: 'WEAK_PASSWORD', message: 'New password must be at least 6 characters long.' } });
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'PASSWORD_UNCHANGED', message: 'New password must differ from current password.' }
+      });
     }
 
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User account not found.' } });
+    const user = await findByIdentifier(User, req.user.id);
+    if (!user || !user.password) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'USER_NOT_FOUND', message: 'User account not found.' }
+      });
     }
 
-    if (user.password && currentPassword) {
-      const isMatch = await user.comparePassword(currentPassword);
-      if (!isMatch) {
-        return res.status(401).json({ success: false, error: { code: 'INVALID_CURRENT_PASSWORD', message: 'Current password does not match records.' } });
-      }
+    const isMatch = typeof user.comparePassword === 'function'
+      ? await user.comparePassword(currentPassword)
+      : await bcrypt.compare(currentPassword, user.password);
+
+    if (!isMatch) {
+      await logAuditEvent(req, {
+        action: 'PASSWORD_CHANGE_FAILED',
+        resourceType: 'USER',
+        resource: req.user.id,
+        details: 'Incorrect current password submitted during password update.',
+        sensitivity: 'HIGH',
+        outcome: 'FAILURE'
+      });
+
+      return res.status(401).json({
+        success: false,
+        error: { code: 'INVALID_CURRENT_PASSWORD', message: 'Current password is incorrect.' }
+      });
     }
 
-    user.password = newPassword;
-    await user.save();
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const nextTokenVersion = Number(user.tokenVersion || 0) + 1;
+    const refreshedUser = await updateByIdentifier(User, user._id || user.id, {
+      password: hashedPassword,
+      tokenVersion: nextTokenVersion
+    });
 
-    res.json({ success: true, message: 'Password updated successfully.' });
+    // Invalidate current token and issue fresh session token cleanly
+    revokeToken(req.tokenDecoded);
+    const newToken = signAuthToken(refreshedUser || user);
+    const csrfToken = setSessionCookies(res, newToken);
+
+    await logAuditEvent(req, {
+      action: 'PASSWORD_CHANGED',
+      resourceType: 'USER',
+      resource: req.user.id,
+      details: 'Password updated and prior session tokens invalidated.',
+      sensitivity: 'HIGH',
+      outcome: 'SUCCESS'
+    });
+
+    return res.json({
+      success: true,
+      message: 'Password updated successfully.',
+      data: { csrfToken }
+    });
   } catch (err) {
-    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
+    return res.status(500).json({
+      success: false,
+      error: { code: 'PASSWORD_UPDATE_ERROR', message: err.message }
+    });
   }
 });
 
-// GET /api/auth/users (Restricted to ADMIN and MEDICAL_STAFF)
-router.get('/users', authenticate, authorizeRoles('ADMIN', 'MEDICAL_STAFF'), async (req, res) => {
-  try {
-    const User = getModel('User');
-    const users = await User.find({});
-    const sanitized = users.map(u => ({
-      id: u._id || u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      studentId: u.studentId,
-      staffId: u.staffId,
-      department: u.department,
-      title: u.title
-    }));
-    res.json(sanitized);
-  } catch (err) {
-    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
-  }
-});
-
-// GET /api/auth/me (Authenticated)
+// GET /api/auth/me — Returns verified current user profile from server identity
 router.get('/me', authenticate, async (req, res) => {
   try {
     const User = getModel('User');
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found.' } });
-    res.json({
-      id: user._id || user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      studentId: user.studentId,
-      staffId: user.staffId,
-      department: user.department,
-      title: user.title
+    const user = await findByIdentifier(User, req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'USER_NOT_FOUND', message: 'User account not found.' }
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Session verified.',
+      data: { user: sanitizeUser(user) }
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: err.message } });
+    return res.status(500).json({
+      success: false,
+      error: { code: 'SESSION_ERROR', message: err.message }
+    });
+  }
+});
+
+// GET /api/auth/users — Admin user directory with pagination & search (CLINICIANS excluded from user governance)
+router.get('/users', authenticate, authorizeRoles('ADMIN'), async (req, res) => {
+  try {
+    const User = getModel('User');
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
+    const roleFilter = req.query.role ? String(req.query.role).trim().toUpperCase() : '';
+    const search = req.query.search ? String(req.query.search).trim().toLowerCase() : '';
+
+    let users = await User.find(roleFilter ? { role: roleFilter } : {});
+    if (search) {
+      users = users.filter((u) =>
+        (u.name || '').toLowerCase().includes(search) ||
+        (u.email || '').toLowerCase().includes(search) ||
+        (u.studentId || '').toLowerCase().includes(search) ||
+        (u.staffId || '').toLowerCase().includes(search)
+      );
+    }
+
+    const total = users.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const start = (page - 1) * limit;
+    const paginated = users.slice(start, start + limit).map(sanitizeUser);
+
+    return res.json({
+      success: true,
+      message: 'Users retrieved successfully.',
+      data: paginated,
+      pagination: { page, limit, total, totalPages }
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: { code: 'USER_LIST_ERROR', message: err.message }
+    });
+  }
+});
+
+// GET /api/auth/staff — Non-sensitive clinician directory for Admin/Dashboard displays
+router.get('/staff', authenticate, authorizeRoles('ADMIN', 'MEDICAL_STAFF'), async (req, res) => {
+  try {
+    const User = getModel('User');
+    const staff = await User.find({ role: 'MEDICAL_STAFF' });
+    return res.json({
+      success: true,
+      message: 'Medical staff retrieved.',
+      data: staff.map(sanitizeUser)
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: { code: 'STAFF_LIST_ERROR', message: err.message }
+    });
+  }
+});
+
+// POST /api/auth/users — Admin-only creation of privileged/staff/student accounts
+router.post('/users', authenticate, authorizeRoles('ADMIN'), validate({ body: adminCreateUserSchema }), async (req, res) => {
+  try {
+    const User = getModel('User');
+    const { name, email, password, role, studentId, staffId, department, title, phone } = req.body;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        error: { code: 'USER_EXISTS', message: 'A user with this email already exists.' }
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const created = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+      role,
+      studentId: role === 'STUDENT' ? (studentId ? studentId.toUpperCase() : `STU_${Date.now().toString().slice(-6)}`) : undefined,
+      staffId: role !== 'STUDENT' ? (staffId || `STF_${Date.now().toString().slice(-4)}`) : undefined,
+      department: department || 'General',
+      title,
+      phone,
+      active: true,
+      tokenVersion: 0
+    });
+
+    const safeUser = sanitizeUser(created);
+
+    await logAuditEvent(req, {
+      action: 'ADMIN_CREATE_USER',
+      resourceType: 'USER',
+      resource: safeUser.id,
+      details: `Admin created ${safeUser.role} account (${safeUser.email})`,
+      sensitivity: 'HIGH',
+      outcome: 'SUCCESS'
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'User created successfully.',
+      data: { user: safeUser }
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: { code: 'USER_CREATE_ERROR', message: err.message }
+    });
+  }
+});
+
+// PATCH /api/auth/users/:id/role — Admin updates user role and invalidates old tokens
+router.patch('/users/:id/role', authenticate, authorizeRoles('ADMIN'), validate({ body: adminUpdateRoleSchema }), async (req, res) => {
+  try {
+    const User = getModel('User');
+    const targetId = req.params.id;
+    const { role } = req.body;
+
+    if (String(targetId) === String(req.user.id) && role !== 'ADMIN') {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'SELF_DEMOTION_BLOCKED', message: 'Administrators cannot remove their own ADMIN role.' }
+      });
+    }
+
+    const target = await findByIdentifier(User, targetId);
+    if (!target) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'USER_NOT_FOUND', message: 'Target user not found.' }
+      });
+    }
+
+    const updated = await updateByIdentifier(User, target._id || target.id, {
+      role,
+      tokenVersion: Number(target.tokenVersion || 0) + 1
+    });
+
+    await logAuditEvent(req, {
+      action: 'ADMIN_ROLE_UPDATED',
+      resourceType: 'USER',
+      resource: String(target._id || target.id),
+      details: `Changed role from ${target.role} to ${role}`,
+      sensitivity: 'CRITICAL',
+      outcome: 'SUCCESS'
+    });
+
+    return res.json({
+      success: true,
+      message: `User role updated to ${role}.`,
+      data: { user: sanitizeUser(updated) }
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: { code: 'ROLE_UPDATE_ERROR', message: err.message }
+    });
+  }
+});
+
+// PATCH /api/auth/users/:id/status — Admin activates/suspends account
+router.patch('/users/:id/status', authenticate, authorizeRoles('ADMIN'), validate({ body: adminUpdateStatusSchema }), async (req, res) => {
+  try {
+    const User = getModel('User');
+    const targetId = req.params.id;
+    const { active } = req.body;
+
+    if (String(targetId) === String(req.user.id) && !active) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'SELF_SUSPEND_BLOCKED', message: 'Administrators cannot deactivate their own account.' }
+      });
+    }
+
+    const target = await findByIdentifier(User, targetId);
+    if (!target) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'USER_NOT_FOUND', message: 'Target user not found.' }
+      });
+    }
+
+    const updated = await updateByIdentifier(User, target._id || target.id, {
+      active,
+      tokenVersion: Number(target.tokenVersion || 0) + (active ? 0 : 1)
+    });
+
+    await logAuditEvent(req, {
+      action: active ? 'ADMIN_ACCOUNT_REACTIVATED' : 'ADMIN_ACCOUNT_SUSPENDED',
+      resourceType: 'USER',
+      resource: String(target._id || target.id),
+      details: `Set active=${active} for ${target.email}`,
+      sensitivity: 'CRITICAL',
+      outcome: 'SUCCESS'
+    });
+
+    return res.json({
+      success: true,
+      message: `Account ${active ? 'activated' : 'suspended'} successfully.`,
+      data: { user: sanitizeUser(updated) }
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: { code: 'STATUS_UPDATE_ERROR', message: err.message }
+    });
   }
 });
 

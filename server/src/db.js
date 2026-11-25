@@ -1,35 +1,138 @@
 const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
+const env = require('./config/env');
+
+const MONGO_URI = env.mongoUri || process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/campushealth';
 
 let isConnected = false;
+let supportsTransactions = false;
 
-// Attach error listener to connection to prevent unhandled error event crashes
+mongoose.connection.on('connected', () => {
+  isConnected = true;
+  console.log(`✅ MongoDB connected successfully to "${mongoose.connection.name}"!`);
+});
+
 mongoose.connection.on('error', (err) => {
-  console.warn('⚠️ Mongoose background event notice:', err.message);
+  isConnected = false;
+  console.warn('⚠️ MongoDB connection error:', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+  isConnected = false;
+  console.log('ℹ️ MongoDB disconnected.');
 });
 
 const connectDB = async () => {
-  if (!process.env.MONGO_URI) {
-    console.log('ℹ️ No MONGO_URI set. Using local persistent storage.');
-    return false;
-  }
   try {
-    console.log('Attempting MongoDB connection (4s limit)...');
-    await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 4000,
-      connectTimeoutMS: 4000
+    if (mongoose.connection.readyState === 1) {
+      isConnected = true;
+      return true;
+    }
+
+    await mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+      autoIndex: true
     });
+
     isConnected = true;
-    console.log('✅ MongoDB Atlas connected successfully!');
+
+    // Detect if MongoDB deployment supports multi-document transactions (replica set or mongos)
+    try {
+      const admin = mongoose.connection.db.admin();
+      const helloInfo = await admin.command({ hello: 1 }).catch(() => admin.command({ isMaster: 1 }));
+      supportsTransactions = Boolean(helloInfo.setName || helloInfo.msg === 'isdbgrid');
+      if (supportsTransactions) {
+        console.log(`✅ MongoDB replica set detected (${helloInfo.setName || 'mongos'}). Multi-document transactions enabled.`);
+      } else {
+        console.log('ℹ️ MongoDB standalone mode detected (atomic single-document operations enabled).');
+      }
+    } catch {
+      supportsTransactions = false;
+      console.log('ℹ️ MongoDB standalone mode assumed (atomic single-document operations enabled).');
+    }
+
     return true;
   } catch (err) {
     isConnected = false;
-    try { await mongoose.disconnect(); } catch (_) {}
-    console.warn('⚠️ MongoDB Atlas unreachable (port 27017 restricted on this network).');
-    console.log('⚡ Active mode: Local persistent database (server/data/campushealth_db.json). Ready for all requests!');
+    console.error('❌ MongoDB initial connection failed:', err.message);
     return false;
   }
 };
 
-const getIsConnected = () => isConnected && mongoose.connection.readyState === 1;
+/**
+ * Execute a unit of work inside a transaction if supported, or directly if standalone.
+ */
+async function withTransaction(workFn) {
+  if (supportsTransactions && mongoose.connection.readyState === 1) {
+    const session = await mongoose.startSession();
+    try {
+      let result;
+      await session.withTransaction(async () => {
+        result = await workFn(session);
+      });
+      return result;
+    } catch (err) {
+      if (err.message && err.message.includes('replica set member')) {
+        supportsTransactions = false;
+        return workFn(null);
+      }
+      throw err;
+    } finally {
+      await session.endSession();
+    }
+  }
+  // Standalone fallback: execute work without session
+  return workFn(null);
+}
 
-module.exports = { connectDB, getIsConnected };
+/**
+ * Create a full database backup in server/data/backups/
+ */
+async function createDatabaseBackup() {
+  const { mongooseModels } = require('./models/provider');
+  const backupDir = path.join(__dirname, '../data/backups');
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir, { recursive: true });
+  }
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupFile = path.join(backupDir, `backup_${timestamp}.json`);
+
+  const dump = {
+    metadata: {
+      timestamp: new Date().toISOString(),
+      platform: 'MedicoAssist Campus Healthcare System',
+      version: '3.0.0'
+    },
+    collections: {}
+  };
+
+  for (const [name, model] of Object.entries(mongooseModels)) {
+    try {
+      const records = await model.find({}).lean();
+      dump.collections[name] = records;
+    } catch {
+      dump.collections[name] = [];
+    }
+  }
+
+  fs.writeFileSync(backupFile, JSON.stringify(dump, null, 2), 'utf8');
+  console.log(`✅ Backup successfully saved to ${backupFile}`);
+  return {
+    filename: path.basename(backupFile),
+    path: backupFile,
+    timestamp: dump.metadata.timestamp,
+    stats: Object.fromEntries(Object.entries(dump.collections).map(([k, v]) => [k, v.length]))
+  };
+}
+
+const getIsConnected = () => isConnected || mongoose.connection.readyState === 1;
+
+module.exports = {
+  connectDB,
+  getIsConnected,
+  withTransaction,
+  createDatabaseBackup,
+  MONGO_URI
+};

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { KeyRound, Shield, CheckCircle2, Lock, Users, Stethoscope } from 'lucide-react';
+import React from 'react';
+import { KeyRound, Shield, Lock, Stethoscope } from 'lucide-react';
 
 export const RoleManagement: React.FC = () => {
   return (
@@ -23,14 +23,14 @@ export const RoleManagement: React.FC = () => {
         
         {/* Student Permissions */}
         <div className="card-enterprise p-6 space-y-4">
-          <div className="flex items-center gap-2 font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+          <div className="flex items-center gap-2 font-bold text-blue-600 dark:text-blue-400 text-sm">
             <Shield className="w-5 h-5" /> Student Role Controls
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
               <span className="font-semibold text-slate-800 dark:text-slate-200">View Own Medical & Prescription History</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">ALLOWED</span>
+              <span className="text-blue-600 dark:text-blue-400 font-bold">ALLOWED</span>
             </div>
 
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
@@ -40,31 +40,31 @@ export const RoleManagement: React.FC = () => {
 
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
               <span className="font-semibold text-slate-800 dark:text-slate-200">Submit Daily Health Check Symptoms</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">ALLOWED</span>
+              <span className="text-blue-600 dark:text-blue-400 font-bold">ALLOWED</span>
             </div>
           </div>
         </div>
 
         {/* Medical Staff Permissions */}
         <div className="card-enterprise p-6 space-y-4">
-          <div className="flex items-center gap-2 font-bold text-teal-600 dark:text-teal-400 text-sm">
+          <div className="flex items-center gap-2 font-bold text-sky-600 dark:text-sky-400 text-sm">
             <Stethoscope className="w-5 h-5" /> Medical Centre Clinician Controls
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
               <span className="font-semibold text-slate-800 dark:text-slate-200">Issue & Version Prescriptions</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">ALLOWED</span>
+              <span className="text-blue-600 dark:text-blue-400 font-bold">ALLOWED</span>
             </div>
 
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
               <span className="font-semibold text-slate-800 dark:text-slate-200">Approve AI Nutrition Recommendations</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">ALLOWED</span>
+              <span className="text-blue-600 dark:text-blue-400 font-bold">ALLOWED</span>
             </div>
 
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
               <span className="font-semibold text-slate-800 dark:text-slate-200">Search Student Directory & Record Vitals</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">ALLOWED</span>
+              <span className="text-blue-600 dark:text-blue-400 font-bold">ALLOWED</span>
             </div>
           </div>
         </div>
@@ -78,7 +78,7 @@ export const RoleManagement: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
               <span className="font-semibold text-slate-800 dark:text-slate-200">View Aggregated Non-Clinical Metrics</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">ALLOWED</span>
+              <span className="text-blue-600 dark:text-blue-400 font-bold">ALLOWED</span>
             </div>
 
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
@@ -88,7 +88,12 @@ export const RoleManagement: React.FC = () => {
 
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
               <span className="font-semibold text-slate-800 dark:text-slate-200">Inspect Security & Audit Logs</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">ALLOWED</span>
+              <span className="text-blue-600 dark:text-blue-400 font-bold">ALLOWED</span>
+            </div>
+
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">New Consultations & Prescriptions</span>
+              <span className="text-rose-600 dark:text-rose-400 font-bold">DOCTORS ONLY (RESTRICTED)</span>
             </div>
           </div>
         </div>
@@ -102,7 +107,7 @@ export const RoleManagement: React.FC = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
               <span className="font-semibold text-slate-800 dark:text-slate-200">View Critical Triage Info (Blood Group, Allergies)</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">ALLOWED</span>
+              <span className="text-blue-600 dark:text-blue-400 font-bold">ALLOWED</span>
             </div>
 
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
@@ -112,7 +117,7 @@ export const RoleManagement: React.FC = () => {
 
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
               <span className="font-semibold text-slate-800 dark:text-slate-200">Audit Log Mandatory Emission</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold">ENFORCED</span>
+              <span className="text-blue-600 dark:text-blue-400 font-bold">ENFORCED</span>
             </div>
           </div>
         </div>

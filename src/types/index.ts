@@ -64,6 +64,7 @@ export interface PrescriptionItem {
   frequency: string;
   durationDays: number;
   instructions: string;
+  quantity?: number;
 }
 
 export interface PrescriptionVersion {
@@ -73,6 +74,7 @@ export interface PrescriptionVersion {
   createdByDoctor: string;
   status: 'ACTIVE' | 'MODIFIED' | 'DISCONTINUED';
   items: PrescriptionItem[];
+  diagnosis?: string;
   followUpDate?: string;
   notes?: string;
   changeReason?: string;
@@ -82,6 +84,7 @@ export interface Prescription {
   id: string;
   studentId: string;
   doctorName: string;
+  diagnosis?: string;
   createdAt: string;
   status: 'ACTIVE' | 'MODIFIED' | 'DISCONTINUED';
   currentVersion: PrescriptionVersion;
@@ -149,6 +152,10 @@ export interface NutritionPlan {
   approvedBy?: string;
   approvedAt?: string;
   reviewDate: string;
+  targetCalories?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
   meals: {
     breakfast: string[];
     midMorning: string[];
@@ -381,3 +388,26 @@ export interface ModelEvaluationMetrics {
     experimentC: BenchmarkExperiment;
   };
 }
+
+// -------------------------------------------------------------
+// PHARMACY & MEDICINE STOCK INVENTORY
+// -------------------------------------------------------------
+
+export type StockStatus = 'Full Stock' | 'Less Stock' | 'Restock';
+
+export interface MedicineStockItem {
+  id: string;
+  catalogId: number;
+  name: string;
+  generic: string;
+  category: string;
+  isTablet: boolean;
+  defaultDosage?: string;
+  symptoms?: string;
+  quantity: number;
+  minThreshold: number;
+  status: StockStatus;
+  lastRestocked?: string;
+  updatedAt?: string;
+}
+

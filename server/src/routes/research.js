@@ -6,10 +6,26 @@ const {
   evaluateMLRiskStratification
 } = require('../services/clinicalRiskEngine');
 
-/**
- * Standardized Benchmark Validation Dataset Generator (Reproducible, Seed = 42)
- * Generates 400 collegiate clinical evaluation samples with known ground-truth severity
- */
+const MIN_CELL_SIZE = 3;
+
+function applyKAnonymitySuppression(countsMap, minCellSize = MIN_CELL_SIZE) {
+  const result = {};
+  let suppressedSum = 0;
+
+  for (const [label, count] of Object.entries(countsMap)) {
+    if (count >= minCellSize) {
+      result[label] = count;
+    } else {
+      suppressedSum += count;
+    }
+  }
+
+  if (suppressedSum > 0) {
+    result[`Other / Suppressed (<${minCellSize})`] = suppressedSum;
+  }
+  return result;
+}
+
 function generateBenchmarkDataset(seed = 42) {
   let s = seed;
   const pseudoRandom = () => {
@@ -21,10 +37,16 @@ function generateBenchmarkDataset(seed = 42) {
   for (let i = 1; i <= 400; i++) {
     const r = pseudoRandom();
     let groundTruth;
-    let sbp, dbp, hr, spo2, temp, severity, conditionsCount, adherent;
+    let sbp;
+    let dbp;
+    let hr;
+    let spo2;
+    let temp;
+    let severity;
+    let conditionsCount;
+    let adherent;
 
     if (r < 0.50) {
-      // Normal / Low Risk cohort (50%)
       groundTruth = 'LOW';
       sbp = Math.floor(110 + pseudoRandom() * 15);
       dbp = Math.floor(70 + pseudoRandom() * 12);
@@ -35,7 +57,6 @@ function generateBenchmarkDataset(seed = 42) {
       conditionsCount = pseudoRandom() > 0.8 ? 1 : 0;
       adherent = pseudoRandom() > 0.1;
     } else if (r < 0.78) {
-      // Moderate Risk cohort (28%)
       groundTruth = 'MODERATE';
       sbp = Math.floor(128 + pseudoRandom() * 18);
       dbp = Math.floor(82 + pseudoRandom() * 12);
@@ -46,7 +67,6 @@ function generateBenchmarkDataset(seed = 42) {
       conditionsCount = Math.floor(pseudoRandom() * 2);
       adherent = pseudoRandom() > 0.25;
     } else if (r < 0.93) {
-      // High Risk cohort (15%)
       groundTruth = 'HIGH';
       sbp = Math.floor(145 + pseudoRandom() * 25);
       dbp = Math.floor(92 + pseudoRandom() * 14);
@@ -57,7 +77,6 @@ function generateBenchmarkDataset(seed = 42) {
       conditionsCount = Math.floor(1 + pseudoRandom() * 2);
       adherent = pseudoRandom() > 0.4;
     } else {
-      // Urgent Risk cohort (7%)
       groundTruth = 'URGENT';
       sbp = Math.floor(165 + pseudoRandom() * 40);
       dbp = Math.floor(102 + pseudoRandom() * 18);
@@ -82,7 +101,7 @@ function generateBenchmarkDataset(seed = 42) {
   return samples;
 }
 
-// GET /api/research/population-metrics — De-identified Aggregated Statistics (k-anonymity >= 5)
+// GET /api/research/population-metrics — Real de-identified aggregates with genuine k-anonymity cell suppression
 router.get('/population-metrics', authenticate, authorizeRoles('RESEARCHER', 'ADMIN', 'MEDICAL_STAFF'), async (req, res) => {
   try {
     const StudentProfile = getModel('StudentProfile');
@@ -95,54 +114,45 @@ router.get('/population-metrics', authenticate, authorizeRoles('RESEARCHER', 'AD
     const monitoringResponses = await MonitoringResponse.find({});
     const prescriptions = await Prescription.find({});
 
-    const totalStudents = profiles.length || 24;
-    const totalVisits = visits.length || 45;
-    const totalResponses = monitoringResponses.length || 78;
-
-    // Condition distribution (anonymized aggregates)
     const conditionCounts = {};
-    profiles.forEach(p => {
-      (p.criticalConditions || []).forEach(c => {
+    const bloodGroupCounts = {};
+    const deptCounts = {};
+    let underweight = 0;
+    let normal = 0;
+    let overweight = 0;
+    let obese = 0;
+
+    profiles.forEach((p) => {
+      (p.criticalConditions || []).forEach((c) => {
         conditionCounts[c] = (conditionCounts[c] || 0) + 1;
       });
-    });
-
-    // Blood group distribution
-    const bloodGroupDistribution = {};
-    profiles.forEach(p => {
       const bg = p.bloodGroup || 'Unclassified';
-      bloodGroupDistribution[bg] = (bloodGroupDistribution[bg] || 0) + 1;
-    });
+      bloodGroupCounts[bg] = (bloodGroupCounts[bg] || 0) + 1;
 
-    // Departmental distribution (aggregated)
-    const deptDistribution = {};
-    profiles.forEach(p => {
       const dept = p.department || 'General';
-      deptDistribution[dept] = (deptDistribution[dept] || 0) + 1;
+      deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+
+      if (p.bmi && Number(p.bmi) > 0) {
+        if (p.bmi < 18.5) underweight++;
+        else if (p.bmi < 25) normal++;
+        else if (p.bmi < 30) overweight++;
+        else obese++;
+      }
     });
 
-    // BMI categorization
-    let underweight = 0, normal = 0, overweight = 0, obese = 0;
-    profiles.forEach(p => {
-      const bmi = p.bmi || 22.0;
-      if (bmi < 18.5) underweight++;
-      else if (bmi < 25) normal++;
-      else if (bmi < 30) overweight++;
-      else obese++;
-    });
-
-    res.json({
+    return res.json({
       success: true,
+      message: 'De-identified population metrics computed.',
       data: {
-        privacyProtocol: 'De-identified Aggregate Statistical Cohort (k-anonymity >= 5). No individual student PII exposed.',
-        totalCohortSize: totalStudents,
-        totalClinicalVisits: totalVisits,
-        totalMonitoringResponsesLogged: totalResponses,
+        privacyProtocol: `De-identified Aggregate Statistical Cohort (cell suppression k >= ${MIN_CELL_SIZE}). No individual student PII exposed.`,
+        totalCohortSize: profiles.length,
+        totalClinicalVisits: visits.length,
+        totalMonitoringResponsesLogged: monitoringResponses.length,
         totalPrescriptionsTracked: prescriptions.length,
         anonymizedDistributions: {
-          conditionPrevalence: conditionCounts,
-          bloodGroupBreakdown: bloodGroupDistribution,
-          departmentDistribution: deptDistribution,
+          conditionPrevalence: applyKAnonymitySuppression(conditionCounts),
+          bloodGroupBreakdown: applyKAnonymitySuppression(bloodGroupCounts),
+          departmentDistribution: applyKAnonymitySuppression(deptCounts),
           bmiClassification: {
             underweight,
             normalWeight: normal,
@@ -153,26 +163,28 @@ router.get('/population-metrics', authenticate, authorizeRoles('RESEARCHER', 'AD
         privacyCompliance: {
           hipaaDeIdentificationMethod: 'Safe Harbor & Expert Determination Principle',
           directIdentifiersStripped: ['Names', 'StudentIDs', 'ContactPhones', 'HostelRoomNumbers', 'DatesOfBirth'],
-          minimumCellSizeSuppression: 3
+          minimumCellSizeSuppression: MIN_CELL_SIZE
         }
       }
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: { code: 'RESEARCH_ERROR', message: err.message } });
+    return res.status(500).json({
+      success: false,
+      error: { code: 'RESEARCH_ERROR', message: err.message }
+    });
   }
 });
 
-// GET /api/research/model-evaluation — Real Statistical Evaluation of Baseline NEWS2 vs ML Risk Model
+// GET /api/research/model-evaluation — Reproducible evaluation over synthetic seed=42 benchmark
 router.get('/model-evaluation', authenticate, authorizeRoles('RESEARCHER', 'ADMIN', 'MEDICAL_STAFF'), async (req, res) => {
   try {
     const dataset = generateBenchmarkDataset(42);
     const classes = ['LOW', 'MODERATE', 'HIGH', 'URGENT'];
 
-    // Confusion matrices: 4x4
     const cmRuleBased = { LOW: {}, MODERATE: {}, HIGH: {}, URGENT: {} };
     const cmML = { LOW: {}, MODERATE: {}, HIGH: {}, URGENT: {} };
-    classes.forEach(c1 => {
-      classes.forEach(c2 => {
+    classes.forEach((c1) => {
+      classes.forEach((c2) => {
         cmRuleBased[c1][c2] = 0;
         cmML[c1][c2] = 0;
       });
@@ -181,7 +193,7 @@ router.get('/model-evaluation', authenticate, authorizeRoles('RESEARCHER', 'ADMI
     let correctRuleBased = 0;
     let correctML = 0;
 
-    dataset.forEach(sample => {
+    dataset.forEach((sample) => {
       const predRule = evaluateRuleBasedNEWS2(sample.vitals, sample.symptomSeverity).riskTier;
       const predML = evaluateMLRiskStratification(sample).riskTier;
       const actual = sample.groundTruth;
@@ -197,16 +209,15 @@ router.get('/model-evaluation', authenticate, authorizeRoles('RESEARCHER', 'ADMI
     const accRuleBased = parseFloat((correctRuleBased / totalSamples).toFixed(4));
     const accML = parseFloat((correctML / totalSamples).toFixed(4));
 
-    // Calculate Precision, Recall, Specificity, F1 for ML Model
     const classMetricsML = {};
-    classes.forEach(c => {
+    classes.forEach((c) => {
       const tp = cmML[c][c];
       let fp = 0;
       let fn = 0;
       let tn = 0;
 
-      classes.forEach(actual => {
-        classes.forEach(pred => {
+      classes.forEach((actual) => {
+        classes.forEach((pred) => {
           if (pred === c && actual !== c) fp += cmML[actual][pred];
           if (actual === c && pred !== c) fn += cmML[actual][pred];
           if (actual !== c && pred !== c) tn += cmML[actual][pred];
@@ -230,13 +241,11 @@ router.get('/model-evaluation', authenticate, authorizeRoles('RESEARCHER', 'ADMI
       };
     });
 
-    // Macro Averages
     const avgPrecision = parseFloat((Object.values(classMetricsML).reduce((a, b) => a + b.precision, 0) / 4).toFixed(3));
     const avgRecall = parseFloat((Object.values(classMetricsML).reduce((a, b) => a + b.recallSensitivity, 0) / 4).toFixed(3));
     const avgSpecificity = parseFloat((Object.values(classMetricsML).reduce((a, b) => a + b.specificity, 0) / 4).toFixed(3));
     const avgF1 = parseFloat((Object.values(classMetricsML).reduce((a, b) => a + b.f1Score, 0) / 4).toFixed(3));
 
-    // Feature Importance Rankings
     const featureImportance = [
       { feature: 'Systolic Blood Pressure (High/Low)', relativeImportanceScore: 0.264, clinicalDomain: 'Hemodynamics' },
       { feature: 'Peripheral Oxygen Saturation (SpO2)', relativeImportanceScore: 0.228, clinicalDomain: 'Respiratory' },
@@ -247,11 +256,10 @@ router.get('/model-evaluation', authenticate, authorizeRoles('RESEARCHER', 'ADMI
       { feature: 'Medication Adherence History', relativeImportanceScore: 0.037, clinicalDomain: 'Behavioral Adherence' }
     ];
 
-    // Three Formal Benchmark Experiments
     const experiments = {
       experimentA: {
-        title: 'Experiment A: Baseline Rule-Based NEWS2 vs. Machine Learning Risk Stratification',
-        hypothesis: 'Multivariate ML risk stratification significantly outperforms univariate NEWS2 threshold heuristics in sensitivity and F1-score for acute decompensation risk.',
+        title: 'Experiment A: Baseline Rule-Based NEWS2 vs. Multivariate Prior Risk Stratification',
+        hypothesis: 'Weighted multivariate logistic scoring improves sensitivity and balanced F1-score on synthetic acute triage samples.',
         datasetSize: totalSamples,
         metricsComparison: {
           ruleBasedNEWS2: {
@@ -276,11 +284,11 @@ router.get('/model-evaluation', authenticate, authorizeRoles('RESEARCHER', 'ADMI
           f1Gain: parseFloat(((avgF1 - 0.730) * 100).toFixed(1)),
           aurocGain: parseFloat(((0.932 - 0.795) * 100).toFixed(1))
         },
-        conclusion: 'ML Model demonstrates superior balance between high sensitivity for acute hypoxemia/hypertension while lowering false-alarm triage alerts by 23.4%.'
+        conclusion: 'Evaluated reproducibly on synthetic validation set (seed = 42, N = 400).'
       },
       experimentB: {
-        title: 'Experiment B: Traditional Full EHR Emergency Disclosure vs. Privacy-Preserving Opaque Token',
-        hypothesis: 'Cryptographic opaque token architecture achieves >80% privacy preservation while maintaining 100% availability of life-critical emergency triage data.',
+        title: 'Experiment B: Full EHR Disclosure vs. Minimum Necessary Emergency Token',
+        hypothesis: 'Cryptographic opaque token architecture achieves >80% sensitive-field withholding.',
         metrics: {
           traditionalFullRecordExposedFields: 48,
           privacyPreservingEmergencyFields: 7,
@@ -291,34 +299,24 @@ router.get('/model-evaluation', authenticate, authorizeRoles('RESEARCHER', 'ADMI
           latencyReductionPercent: 66.1,
           auditLoggingCoveragePercent: 100
         },
-        conclusion: 'Privacy-preserving emergency token reduces unnecessary PII disclosure by 85.4% and retrieves critical triage datasets 2.95x faster than full EHR fetching.'
-      },
-      experimentC: {
-        title: 'Experiment C: Traditional Periodic Consultation vs. Continuous Digital Health Monitoring',
-        hypothesis: 'Daily digital monitoring significantly shortens time to clinical detection of worsening symptoms compared to episodic follow-up appointments.',
-        metrics: {
-          meanDaysToComplicationDetectionPeriodic: 4.8,
-          meanDaysToComplicationDetectionContinuous: 1.2,
-          earlyInterventionAccelerationRatio: '4.0x faster',
-          studentComplianceRatePercent: 91.2,
-          preventableEmergencyEscalationReductionPercent: 38.6
-        },
-        conclusion: 'Continuous daily health checks reduce average diagnostic delay from 4.8 days to 1.2 days, enabling early outpatient clinic interventions.'
+        conclusion: 'Minimum-necessary projection exposes 7 critical fields out of 48.'
       }
     };
 
-    res.json({
+    return res.json({
       success: true,
+      message: 'Synthetic benchmark evaluation completed.',
       data: {
         evaluationTimestamp: new Date().toISOString(),
         datasetMetadata: {
           totalSamples,
           randomSeed: 42,
+          note: 'Computed over standardized synthetic benchmark (seed=42), not live patient trial outcomes.',
           classDistribution: {
-            LOW: dataset.filter(s => s.groundTruth === 'LOW').length,
-            MODERATE: dataset.filter(s => s.groundTruth === 'MODERATE').length,
-            HIGH: dataset.filter(s => s.groundTruth === 'HIGH').length,
-            URGENT: dataset.filter(s => s.groundTruth === 'URGENT').length
+            LOW: dataset.filter((s) => s.groundTruth === 'LOW').length,
+            MODERATE: dataset.filter((s) => s.groundTruth === 'MODERATE').length,
+            HIGH: dataset.filter((s) => s.groundTruth === 'HIGH').length,
+            URGENT: dataset.filter((s) => s.groundTruth === 'URGENT').length
           }
         },
         overallPerformance: {
@@ -340,7 +338,10 @@ router.get('/model-evaluation', authenticate, authorizeRoles('RESEARCHER', 'ADMI
       }
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: { code: 'EVALUATION_FAILED', message: err.message } });
+    return res.status(500).json({
+      success: false,
+      error: { code: 'EVALUATION_FAILED', message: err.message }
+    });
   }
 });
 

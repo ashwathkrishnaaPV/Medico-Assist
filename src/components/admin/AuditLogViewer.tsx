@@ -36,7 +36,7 @@ export const AuditLogViewer: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
-            <FileCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+            <FileCheck className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Enterprise Audit & Security Logs</h1>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -97,7 +97,7 @@ export const AuditLogViewer: React.FC = () => {
                     <div className="text-[10px] text-slate-500 dark:text-slate-400">{log.userRole}</div>
                   </td>
                   <td className="p-3 font-bold text-indigo-600 dark:text-indigo-300">{log.action}</td>
-                  <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400">{log.resource}</td>
+                  <td className="p-3 font-bold text-blue-600 dark:text-blue-400">{log.resource}</td>
                   <td className="p-3 font-sans text-xs text-slate-600 dark:text-slate-300 max-w-xs">{log.details}</td>
                   <td className="p-3 text-slate-500 dark:text-slate-400">{log.ipAddress}</td>
                   <td className="p-3">

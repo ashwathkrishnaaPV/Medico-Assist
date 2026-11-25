@@ -1,347 +1,142 @@
-# MedicoAssist: An Explainable, Privacy-Aware Intelligent Campus Healthcare Platform
+# MedicoAssist — Campus Healthcare Management System
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://img.shields.io/badge/Build-Passing-emerald.svg)]()
-[![Test Suite](https://img.shields.io/badge/Tests-20%2F20%20Passing%20(100%25)-brightgreen.svg)]()
-[![Privacy Score](https://img.shields.io/badge/Min%20Disclosure%20Score-85.4%25%20Withheld-teal.svg)]()
-[![Model AUROC](https://img.shields.io/badge/ML%20AUROC-0.932-purple.svg)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6.svg)]()
+[![Database](https://img.shields.io/badge/MongoDB-Mongoose%20ODM-47A248.svg)]()
+[![Security](https://img.shields.io/badge/Auth-HttpOnly%20JWT%20%2B%20CSRF-emerald.svg)]()
+[![API Docs](https://img.shields.io/badge/OpenAPI-3.0%20Swagger-85EA2D.svg)]()
+
+**MedicoAssist** is a secure, full-stack Campus Healthcare Management System built for university medical centres. It unifies student health portals, clinical consultations, versioned prescriptions with automated pharmacy inventory deduction, daily symptom monitoring, emergency QR minimum-necessary disclosure, and AI-assisted healthcare education & clinician workflow tools.
 
 ---
 
-## 1. Abstract
+## 1. System Architecture
 
-Collegiate healthcare centers face unique operational challenges: managing high-volume acute consultations, ensuring continuous monitoring of ambulatory students with communicable or chronic illnesses, providing rapid emergency medical triage during campus crises, and upholding strict data confidentiality in compliance with HIPAA and GDPR standards. Existing university health portals function predominantly as fragmented scheduling or electronic record viewing tools, lacking explainable clinical risk prioritization, cryptographic emergency protocols, and longitudinal analytical pipelines.
+```mermaid
+flowchart LR
+    Client["React 19 + TypeScript + Vite SPA\n(React.lazy Code Splitting)"]
+    Proxy["Nginx / Vite Dev Proxy\n(/api -> :3001)"]
+    Gateway["Express Security Gateway\nHelmet · CORS · Rate Limiter · CSRF · Correlation ID"]
+    Auth["Auth & RBAC / IDOR Middleware\nHttpOnly JWT · Bcrypt · Lockout · Zod .strict()"]
+    Services["Domain & Clinical Services\nVisits · Rx Versioning · Inventory · Audit · Emergency"]
+    AI["AI Assistant Service\nOpenAI-Compatible REST + Deterministic Safety Fallback"]
+    DB[("MongoDB\n(Mongoose ODM + Indexes)")]
 
-**MedicoAssist** is an explainable, privacy-preserving, and intelligent campus healthcare platform. It provides:
-1. **Continuous student health monitoring** with automated daily recovery trajectory tracking.
-2. **Clinical decision support (CDSS)** powered by a calibrated multivariate prior model benchmarked against the National Early Warning Score (NEWS2) baseline with local additive feature attribution (Linear SHAP-style explainability).
-3. **A privacy-preserving emergency medical access system** that employs ephemeral cryptographic opaque tokens, server-side SHA-256 hashing, short time-to-live (TTL) limits, single-use access controls, and strict minimum-necessary dataset disclosure (achieving an empirical **85.4% privacy preservation ratio**).
-4. **End-to-end prescription traceability** with immutable version-control diffs and clinician rationales.
-5. **A dedicated researcher and model evaluation suite** computing real macro-averaged evaluation metrics (AUROC 0.932, Accuracy 91.5%, F1 0.888) and de-identified population metrics.
-
----
-
-## 2. Problem Statement
-
-Traditional university health clinics encounter three fundamental vulnerabilities:
-1. **Over-exposure in Emergency Scenarios**: First responders and paramedics scanning emergency QR codes on student IDs are frequently granted unrestricted access to entire Electronic Health Records (EHRs)—including psychiatric notes, academic standing, sexual health consultations, and non-emergent histories—violating the HIPAA Minimum Necessary Standard.
-2. **Black-Box or Pseudo-AI Triage**: Systems either employ simple, uncalibrated rule heuristics or opaque deep learning classifiers that fail to provide clinicians with transparent, scientifically grounded explanations for risk stratification.
-3. **Disconnected Longitudinal Care**: Clinical encounters, prescription modifications, patient-reported daily symptom logs, and emergency events are scattered across disparate silos, preventing clinicians from recognizing insidious clinical deterioration.
-
----
-
-## 3. Motivation
-
-University students frequently reside away from immediate family in residential halls where acute decompensation (e.g., severe asthma exacerbations, diabetic hypoglycemia, communicable respiratory infections, anaphylaxis) requires instantaneous triage. Bridging student self-monitoring with clinical oversight through a secure, privacy-preserving, and mathematically defensible platform significantly reduces diagnostic latency and prevents avoidable hospitalizations.
-
----
-
-## 4. Research Gap
-
-| Dimension | Existing University Portals | Commercial Telehealth Apps | **MedicoAssist (This Work)** |
-| :--- | :--- | :--- | :--- |
-| **Emergency QR Access** | Static plaintext URL exposing full profile | Cloud login wall (slow, high latency) | **Opaque cryptographic token + SHA-256 hash + 85.4% Min. Necessary Disclosure** |
-| **Clinical Triage** | None or basic triage checkbox | Proprietary black-box ML | **NEWS2 Baseline vs. Calibrated ML Classifier with SHAP Feature Attribution** |
-| **Explainability (XAI)** | Absent | Absent | **Additive local feature attribution with percentage contribution breakdown** |
-| **Prescription History** | Flat overwrite (data loss) | Simple audit timestamp | **Full multi-version lineage (v1 -> v2) with clinician rationale diffs** |
-| **Continuous Monitoring** | Episodic appointments only | Wearable-dependent silos | **Daily symptom trajectory engine with automatic next-day gating** |
-| **Research Accessibility** | High risk of PII leakage | Locked commercial data | **De-identified aggregate cohort analytics (k-anonymity >= 5)** |
-
----
-
-## 5. Objectives
-
-1. Design and evaluate a **Privacy-Preserving Emergency Medical Access Protocol** using cryptographic tokens that minimizes unnecessary medical record disclosure while guaranteeing 100% availability of life-saving triage data.
-2. Formulate an **Explainable Clinical Decision Support Model** that predicts acute clinical risk tiers (`LOW`, `MODERATE`, `HIGH`, `URGENT`) with quantified feature importance scores.
-3. Implement a **Context-Aware Role-Based and Attribute-Based Access Control (RBAC/ABAC)** architecture that eliminates Insecure Direct Object References (IDOR).
-4. Empirically measure and publish comparative performance across three benchmark experiments.
-
----
-
-## 6. Key Contributions
-
-* **Contribution 1 (Privacy Engineering)**: Formulated the *Minimum Necessary Disclosure Model* for emergency QR access, reducing unnecessary sensitive field exposure by 85.4% while accelerating retrieval latency from 124ms to 42ms.
-* **Contribution 2 (Explainable Clinical AI)**: Built an open, transparent clinical risk engine that integrates NEWS2 baseline heuristics with a calibrated multivariate classifier, providing clinicians with exact additive feature attributions for blood pressure, oxygen saturation, tachycardia, and comorbidity factors.
-* **Contribution 3 (Diagnostic Acceleration)**: Demonstrated that digital daily symptom monitoring reduces the mean time to clinical detection of worsening symptoms from 4.8 days (periodic follow-up) to 1.2 days (daily digital checks).
-* **Contribution 4 (Immutable Prescription Traceability)**: Engineered full version-control semantics for student prescriptions with side-by-side diff tracking and mandatory clinician change rationales.
-* **Contribution 5 (Ethical & Reproducible AI Framework)**: Created a de-identified, reproducible benchmark validation pipeline (random seed = 42, N = 400) computing real multi-class confusion matrices, ROC curves, and subgroup fairness evaluations.
-
----
-
-## 7. System Architecture
-
-```
-                                  [ Client Layer ]
-              +-------------------------------------------------------+
-              | React 19 + TypeScript + Tailwind CSS Single Page App  |
-              |   * Student Portal (Wellness, Rx, Daily Checks)       |
-              |   * Medical Centre Console (Consultation, CDSS AI)    |
-              |   * Enterprise Administration (RBAC, Audit Logs)      |
-              |   * Researcher Analytics (Model Validation, XAI)      |
-              |   * Emergency Responder Desk (Token Triage)           |
-              +-------------------------------------------------------+
-                                          |
-                              HTTPS / REST API (Port 3001)
-                                          |
-                            [ Security Gateway Middleware ]
-              +-------------------------------------------------------+
-              | * Helmet Security Headers                             |
-              | * Tiered Rate Limiting (express-rate-limit)           |
-              | * Strict Origin CORS Whitelisting                     |
-              | * JWT Authentication & Context Hydration              |
-              | * Contextual IDOR Guard (verifyOwnershipOrRole)       |
-              | * Immutable Structured Audit Logger                   |
-              +-------------------------------------------------------+
-                                          |
-                              [ Core Service Layer ]
-        +-------------------+--------------------+--------------------+
-        |                   |                    |                    |
-[ Clinical Risk & XAI ]  [ Emergency Access ] [ Health Store ] [ Research Engine ]
-* NEWS2 Baseline         * Opaque Token Gen   * Medical Visits * Cohort De-ident
-* Multivariate Prior     * SHA-256 Hash Store * Prescriptions  * Model Evaluator
-* Feature Attribution    * TTL & Single-Use   * Daily Mon.     * Benchmarks A/B/C
-* CDSS Safety Guard      * Min. Dataset       * Nutrition Plan * Metric Pipeline
-        +-------------------+--------------------+--------------------+
-                                          |
-                            [ Dual-Mode Storage Engine ]
-              +-------------------------------------------------------+
-              | Primary: MongoDB Atlas (Mongoose ODM, TLS 1.3)        |
-              | Fallback: Local Persistent JSON Database (Zero Config)|
-              +-------------------------------------------------------+
+    Client --> Proxy --> Gateway --> Auth --> Services --> DB
+    Auth --> AI
 ```
 
 ---
 
-## 8. Technology Stack
+## 2. Database Entity-Relationship Diagram (ERD)
 
-* **Frontend**: React 19, TypeScript, Vite 8, Tailwind CSS, Lucide React Icons, Axios.
-* **Backend**: Node.js (v20+), Express.js, Helmet, Express-Rate-Limit, JSON Web Tokens (JWT), Bcrypt.js, Native Crypto (SHA-256).
-* **Database**: MongoDB Atlas (Cloud Mongoose ODM) with automated fallback to local atomic JSON persistence (`server/data/campushealth_db.json`).
-* **Security Standards**: HIPAA Minimum Necessary Rule (45 CFR § 164.502(b)), OWASP Top 10 API Security Compliance, k-Anonymity Principle (k >= 5).
-
----
-
-## 9. Modules & User Personas
-
-1. **Student Portal (`STUDENT`)**:
-   * Medical Profile & emergency contact management.
-   * Unified Longitudinal Health Ledger interweaving clinical encounters, vitals trends, and prescription histories.
-   * Active Daily Health Check with dynamic same-day completion gating.
-   * Emergency Medical Card with cryptographic QR token generator and instant revocation.
-2. **Medical Centre Workspace (`MEDICAL_STAFF`)**:
-   * Clinical Triage Queue and patient directory.
-   * New Visit Consultation with live Explainable AI Clinical Risk Stratification.
-   * Multi-version Prescription Management with change diffs and duration validation (non-negative constraints).
-   * Daily Monitoring Triage assessing patient recovery trajectories.
-   * Nutrition Plan Builder with clinician approval workflow.
-3. **Administrator Console (`ADMIN`)**:
-   * User management and Role-Based Access Control (RBAC) governance.
-   * Emergency Access Audit Ledger inspecting accessor identities, token hashes, and timestamps.
-   * System-wide immutable compliance audit viewer.
-4. **Researcher Portal (`RESEARCHER`)**:
-   * De-identified aggregate population health statistics.
-   * Model Evaluation Dashboard displaying real Confusion Matrices, ROC curves, and Feature Importance attribution rankings.
-   * Interactive results for Experiments A, B, and C.
-5. **Emergency First Responder Desk (`EMERGENCY_RESPONDER`)**:
-   * Rapid token lookup and QR scanner console.
-   * Immediate release of strictly the Minimum Necessary Emergency Dataset.
-   * Real-time disclosure score monitoring.
-
----
-
-## 10. AI/ML Methodology & Risk Stratification
-
-The clinical decision support engine stratifies acute risk into four clinically recognized tiers: `LOW`, `MODERATE`, `HIGH`, and `URGENT`.
-
-### 10.1 Feature Vector Representation
-$$\mathbf{x} = [SBP, DBP, HR, SpO_2, Temp, BMI, Age, Severity, Comorbidities, Adherence]^T$$
-
-### 10.2 Baseline Rule-Based Model (NEWS2 Adapted)
-Derived from the National Early Warning Score (Royal College of Physicians), evaluating threshold infractions:
-* **Severe Hypoxemia** ($SpO_2 \le 91\%$): $+3$ points
-* **Severe Hypotension** ($SBP \le 90\text{ mmHg}$): $+3$ points
-* **Hypertensive Crisis** ($SBP \ge 200\text{ mmHg}$): $+3$ points
-* **Severe Bradycardia** ($HR \le 40\text{ bpm}$) / **Tachycardia** ($HR \ge 131\text{ bpm}$): $+3$ points
-* **Pyrexia** ($Temp \ge 102.4^\circ\text{F}$): $+2$ points
-* Total Score $\ge 7 \implies \text{URGENT}$; $5-6 \implies \text{HIGH}$; $3-4 \implies \text{MODERATE}$; $\le 2 \implies \text{LOW}$.
-
-### 10.3 Machine Learning Multivariate Classifier
-Calibrated logistic softmax regression evaluating continuous deviations from population physiological medians:
-$$P(\text{Risk} = k \mid \mathbf{x}) = \frac{\exp(\mathbf{w}_k^T \mathbf{x} + b_k)}{\sum_{j} \exp(\mathbf{w}_j^T \mathbf{x} + b_j)}$$
-
-### 10.4 Explainability Layer (Linear SHAP-Equivalent Additive Attribution)
-For each physiological parameter $i$, the local risk attribution $\phi_i$ relative to the healthy baseline $\mathbf{x}_{\text{baseline}}$ is computed as:
-$$\phi_i = w_i \cdot (x_i - x_{\text{baseline}, i})$$
-Attributions are normalized into percentage contributions:
-$$\% \text{ Contribution}_i = \frac{\max(0, \phi_i)}{\sum_j \max(0, \phi_j)} \times 100\%$$
-
----
-
-## 11. Privacy-Preserving Emergency Access Protocol
-
-```
-Student Client                   Express Gateway                  Storage Engine
-     |                                 |                                |
-     |-- POST /api/emergency/token --->|                                |
-     |                                 |-- Generate 24-byte token ----->|
-     |                                 |-- SHA-256(token) ------------->|
-     |                                 |-- Store Hash, TTL=15m -------->|
-     |<-- Return raw opaque token -----|                                |
-     |    (Embed in QR Code)           |                                |
-     |                                 |                                |
-First Responder                        |                                |
-     |                                 |                                |
-     |-- POST /api/emergency/verify -->|                                |
-     |   { token, responderId }        |-- Compute SHA-256(token) ----->|
-     |                                 |-- Lookup tokenHash ------------>|
-     |                                 |-- Validate TTL & accessCount ->|
-     |                                 |-- Increment accessCount ------>|
-     |                                 |-- Fetch Student Profile ------>|
-     |                                 |-- Log Emergency Audit Event -->|
-     |<-- Strict Min. Dataset ---------|                                |
-     |    (Blood, Allergies, Contacts) |                                |
+```mermaid
+erDiagram
+    USER ||--o| STUDENT_PROFILE : "owns (1:1)"
+    STUDENT_PROFILE ||--o{ MEDICAL_VISIT : "has"
+    STUDENT_PROFILE ||--o{ PRESCRIPTION : "receives"
+    STUDENT_PROFILE ||--o{ NUTRITION_PLAN : "assigned"
+    STUDENT_PROFILE ||--o{ MONITORING_PLAN : "enrolled"
+    MONITORING_PLAN ||--o{ MONITORING_RESPONSE : "tracks"
+    PRESCRIPTION ||--o{ MEDICINE_INVENTORY : "atomically deducts"
+    STUDENT_PROFILE ||--o{ EMERGENCY_TOKEN : "issues"
+    USER ||--o{ AUDIT_LOG : "actor generates"
 ```
 
-### Minimum Necessary Disclosure Metric
-$$\text{Privacy Preservation Ratio} = \left(1 - \frac{\text{Fields}_{\text{exposed}}}{\text{Fields}_{\text{full EHR}}}\right) \times 100\% = \left(1 - \frac{7}{48}\right) \times 100\% = \mathbf{85.4\%}$$
+---
+
+## 3. Core Engineering & Security Controls
+
+| Control | Implementation |
+| :--- | :--- |
+| **Authentication** | Bcrypt password hashing (`bcryptjs`), fail-fast `JWT_SECRET` validation (`>= 32` chars), HS256 JWTs with `jti` revocation on logout and `tokenVersion` invalidation on role/status changes. |
+| **Session & CSRF** | HttpOnly `SameSite=Lax` auth cookie (`campushealth_token`) paired with double-submit CSRF cookie (`XSRF-TOKEN` / `X-CSRF-TOKEN` header verified via `crypto.timingSafeEqual`). |
+| **Brute-Force & Rate Limiting** | Account lockout after 5 failed login attempts (15-minute window) + tiered `express-rate-limit` on `/api/` and `/api/auth/`. |
+| **RBAC & IDOR Protection** | Strict server-side role checks (`STUDENT`, `MEDICAL_STAFF`, `ADMIN`, `RESEARCHER`, `EMERGENCY_RESPONDER`) and object-level ownership guards (`STUDENT` restricted to own records). |
+| **Input Validation & Sanitization** | Strict Zod schemas (`.strict()` rejects unexpected mass-assignment fields), prototype pollution & MongoDB `$`/dot operator sanitization. |
+| **Prescription Versioning & Inventory** | Immutable version history (`v1` -> `v2`+) preserving prior versions; prescription issuance and updates atomically deduct dispensed tablet counts from `MedicineInventory`. |
+| **Audit Logging & Backups** | Append-only server-side `AuditLog` collection (client-submitted audit writes rejected; Mongoose update/delete hooks blocked) + admin-triggered JSON database backup snapshots. |
 
 ---
 
-## 12. Experimental Results & Benchmarks
+## 4. AI Integration & Safety Guardrails
 
-All metrics reported below were computed from the automated benchmark evaluation suite ($N = 400$ validation samples, reproducible random seed = 42).
+MedicoAssist provides a real OpenAI-compatible REST integration (`server/src/services/aiService.js`) with a deterministic clinical/wellness fallback engine when no external `AI_API_KEY` is configured:
 
-### Experiment A: Baseline NEWS2 vs. Machine Learning Risk Stratification
-| Metric | Baseline NEWS2 (Rule-Based) | ML Risk Stratification Model | Empirical Delta |
-| :--- | :--- | :--- | :--- |
-| **Accuracy** | 74.25% | **91.50%** | **+17.25%** |
-| **Macro Precision** | 0.742 | **0.892** | **+0.150** |
-| **Macro Recall / Sensitivity** | 0.718 | **0.885** | **+0.167** |
-| **Macro Specificity** | 0.865 | **0.961** | **+0.096** |
-| **Macro F1-Score** | 0.730 | **0.888** | **+0.158** |
-| **AUROC (One-vs-Rest)** | 0.795 | **0.932** | **+0.137** |
+- **Healthcare Information Assistant (`POST /api/ai/health-info`)**: Explains clinical terminology, normal vital ranges, and wellness concepts.
+- **Nutrition Assistant (`POST /api/ai/nutrition-advice`)**: Generates allergy-aware and preference-aware collegiate meal suggestions.
+- **Health Trend Explanation (`POST /api/ai/trend-explanation`)**: Summarizes longitudinal vital changes in plain language.
+- **Clinician Visit Summary Draft (`POST /api/ai/visit-summary-draft`)**: Restricted to `MEDICAL_STAFF`; drafts structured consultation notes for physician review and approval.
 
-### Experiment B: Emergency Access Privacy & Latency
-| Parameter | Traditional Full Record Exposure | MedicoAssist Restricted Protocol |
-| :--- | :--- | :--- |
-| **Exposed Fields Count** | 48 fields (100%) | **7 fields (14.6%)** |
-| **Withheld Sensitive Fields** | 0 fields (0%) | **41 fields (85.4%)** |
-| **Retrieval Latency** | 124 ms | **42 ms (66.1% faster)** |
-| **Single-Use Enforcement** | No (Persistent link) | **Yes (Max 1 use or 15m TTL)** |
-| **Audit Logging Coverage** | Partial | **100% Immutable** |
-
-### Experiment C: Periodic Follow-Up vs. Continuous Daily Monitoring
-| Parameter | Periodic Consultation (Episodic) | Continuous Digital Monitoring |
-| :--- | :--- | :--- |
-| **Mean Time to Complication Detection** | 4.8 days | **1.2 days (4.0x faster)** |
-| **Student Compliance Rate** | 64.2% | **91.2%** |
-| **Avoidable Emergency Escalations** | Baseline | **38.6% Reduction** |
+**Safety Guarantees:** Identifiable student details (emails, roll/ID tokens, phone numbers) are stripped prior to external LLM calls, and every response includes a non-diagnostic medical disclaimer.
 
 ---
 
-## 13. Limitations
+## 5. API Documentation (OpenAPI / Swagger)
 
-1. **Synthetic & Standardized Collegiate Cohorts**: Due to strict student medical privacy laws (FERPA/HIPAA), initial model validation was conducted on standardized synthetic collegiate cohorts with physiological parameter ranges modeled after acute care clinical distributions. Clinical trials with patient consent are required prior to live hospital deployment.
-2. **Clinical Decision Support Boundary**: MedicoAssist is an assistive risk prioritization and decision support system; it does **not** make autonomous diagnostic or prescriptive determinations.
-3. **Network Constraints**: On institutional networks restricting outbound TCP port 27017, the platform automatically engages its atomic local fallback engine (`campushealth_db.json`).
+Interactive OpenAPI 3.0 documentation is served directly by the backend:
+- **Swagger UI:** `http://localhost:3001/api/docs`
+- **Raw OpenAPI JSON:** `http://localhost:3001/api/docs.json`
 
 ---
 
-## 14. Installation & Setup
+## 6. Getting Started
 
-### Prerequisites
-* Node.js v20.x or later
-* npm v10.x or later
-* (Optional) MongoDB Atlas Connection URI
+### Option A: Local Development
 
-### Step 1: Clone Repository
+1. **Prerequisites:** Node.js `>= 20`, MongoDB running locally on `127.0.0.1:27017`.
+2. **Install dependencies:**
+   ```bash
+   npm install
+   cd server && npm install && cd ..
+   ```
+3. **Configure environment (`server/.env`):**
+   ```env
+   MONGO_URI=mongodb://127.0.0.1:27017/campushealth
+   PORT=3001
+   NODE_ENV=development
+   JWT_SECRET=<at-least-32-character-random-hex-secret>
+   JWT_EXPIRES_IN=1h
+   CLIENT_ORIGIN=http://localhost:5173
+   # Optional LLM configuration (uses deterministic fallback if omitted)
+   # AI_API_KEY=
+   # AI_BASE_URL=https://api.openai.com/v1
+   # AI_MODEL=gpt-4o-mini
+   ```
+4. **Run backend & frontend:**
+   ```bash
+   # Terminal 1 (Backend API)
+   cd server && npm start
+
+   # Terminal 2 (Vite Frontend)
+   npm run dev
+   ```
+   Open `http://localhost:5173`.
+
+### Option B: Docker Compose (Production Stack)
+
 ```bash
-git clone https://github.com/your-institution/medicoassist.git
-cd medicoassist
+docker compose up --build -d
 ```
-
-### Step 2: Configure Environment
-Copy the sanitized environment template:
-```bash
-cp .env.example .env
-cp .env.example server/.env
-```
-
-Edit `server/.env` with your deployment variables:
-```ini
-PORT=3001
-JWT_SECRET=your_secure_random_64_character_hex_secret
-MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/campushealth?retryWrites=true&w=majority
-CLIENT_ORIGIN=http://localhost:5173
-```
-*(Note: If `MONGO_URI` is omitted or network port 27017 is blocked, the server automatically uses local persistence without crashing).*
-
-### Step 3: Install Dependencies
-```bash
-# Install root frontend dependencies
-npm install
-
-# Install server backend dependencies
-cd server
-npm install
-cd ..
-```
-
-### Step 4: Run Automated Test Suite
-```bash
-npm test
-```
-All 20 tests will execute, validating authentication, IDOR prevention, cryptographic emergency tokens, explainability attribution, and mathematical models.
-
-### Step 5: Start Development Servers
-In Terminal 1 (Backend API):
-```bash
-npm run server
-```
-*API will launch on `http://localhost:3001`.*
-
-In Terminal 2 (Frontend Client):
-```bash
-npm run dev
-```
-*Frontend will launch on `http://localhost:5173`.*
+- **Frontend (Nginx):** `http://localhost`
+- **Backend API & Swagger:** `http://localhost:3001/api/docs`
+- **MongoDB:** `localhost:27017`
 
 ---
 
-## 15. Demo Personas (1-Click Evaluation)
+## 7. Verification & Automated Testing
 
-The login screen includes 1-click evaluation buttons for review panels:
+```bash
+# Lint & Strict TypeScript check
+npx oxlint
+npx tsc -b --noEmit
 
-| Persona | Role | Default Email | Access Scope |
-| :--- | :--- | :--- | :--- |
-| **Alex Rivera** | `STUDENT` | `alex@sece.ac.in` | Own records, daily logs, emergency QR card |
-| **Dr. Sarah Jenkins** | `MEDICAL_STAFF` | `jenkins@sece.ac.in` | Clinical EHR queue, consultation builder, CDSS AI |
-| **Administrator** | `ADMIN` | `admin@sece.ac.in` | User management, RBAC, full audit ledger |
-| **Prof. David Vance** | `RESEARCHER` | `researcher@sece.ac.in` | De-identified cohort analytics, model evaluation (AI) |
-| **Paramedic Unit 4** | `EMERGENCY_RESPONDER`| `responder@sece.ac.in` | Rapid token scanner, minimum triage dataset |
+# Frontend Unit & Component Tests (Vitest + React Testing Library)
+npm run test:frontend
 
----
+# Backend Core, Security, DB & AI Integration Tests
+npm run test:backend
 
-## 16. Ethical Disclaimers
-
-> **IMPORTANT MEDICAL NOTICE**:  
-> MedicoAssist provides clinical decision support (CDSS) and risk prioritization tools designed exclusively to assist licensed healthcare providers. It does **not** provide automated medical diagnoses, write autonomous prescriptions, or replace the clinical judgment of a licensed healthcare practitioner. All AI-generated risk tiers and nutritional guidance require qualified clinical review before clinical action is taken.
-
----
-
-## 17. Research Citation
-
-If you utilize MedicoAssist in your academic research, please cite:
-
-```bibtex
-@article{medicoassist2026,
-  title={MedicoAssist: An Explainable, Privacy-Aware Intelligent Campus Healthcare Platform for Continuous Health Monitoring and Privacy-Preserving Emergency Access},
-  author={MedicoAssist Research Team},
-  journal={IEEE Transactions on Healthcare Informatics and Privacy},
-  year={2026},
-  volume={14},
-  number={2},
-  pages={112--128},
-  publisher={IEEE}
-}
+# Full Production Build
+npm run build
 ```

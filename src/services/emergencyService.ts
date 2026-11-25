@@ -16,7 +16,7 @@ export const emergencyService = {
         return res.data.data;
       }
       return res.data;
-    } catch (err: any) {
+    } catch {
       // Local fallback for standalone testing if offline
       const mockRawToken = 'emg_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       return {
@@ -58,7 +58,7 @@ export const emergencyService = {
     try {
       const res = await api.post('/emergency/revoke');
       return res.data;
-    } catch (err: any) {
+    } catch {
       return { success: true, message: 'Emergency tokens revoked locally.' };
     }
   },
@@ -73,7 +73,7 @@ export const emergencyService = {
         return res.data.data;
       }
       return res.data;
-    } catch (err: any) {
+    } catch {
       return {
         metricName: 'Minimum Necessary Disclosure Score',
         traditionalFullRecordFields: 48,

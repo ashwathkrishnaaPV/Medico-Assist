@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, TrendingUp, Heart, Thermometer, Droplets } from 'lucide-react';
+import { Activity, Heart, Thermometer, Droplets } from 'lucide-react';
 import { Vitals } from '../../types';
 
 interface VitalsChartProps {
@@ -18,12 +18,12 @@ export const VitalsChart: React.FC<VitalsChartProps> = ({ vitalsHistory }) => {
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs">
           <div className="flex items-center justify-between text-slate-400 mb-1">
             <span className="font-semibold text-[10px] uppercase">Blood Pressure</span>
-            <Activity className="w-4 h-4 text-teal-500" />
+            <Activity className="w-4 h-4 text-sky-500" />
           </div>
           <div className="text-base font-extrabold text-slate-800 dark:text-slate-100">
             {latest.bloodPressureSys}/{latest.bloodPressureDia} <span className="text-[10px] font-normal text-slate-400">mmHg</span>
           </div>
-          <span className="text-[10px] font-semibold text-emerald-600">Optimal Range</span>
+          <span className="text-[10px] font-semibold text-blue-600">Optimal Range</span>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs">
@@ -34,7 +34,7 @@ export const VitalsChart: React.FC<VitalsChartProps> = ({ vitalsHistory }) => {
           <div className="text-base font-extrabold text-slate-800 dark:text-slate-100">
             {latest.heartRateBpm} <span className="text-[10px] font-normal text-slate-400">bpm</span>
           </div>
-          <span className="text-[10px] font-semibold text-emerald-600">Normal Rhythm</span>
+          <span className="text-[10px] font-semibold text-blue-600">Normal Rhythm</span>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs">
@@ -45,7 +45,7 @@ export const VitalsChart: React.FC<VitalsChartProps> = ({ vitalsHistory }) => {
           <div className="text-base font-extrabold text-slate-800 dark:text-slate-100">
             {latest.spo2Percent}%
           </div>
-          <span className="text-[10px] font-semibold text-emerald-600">Excellent Oxygenation</span>
+          <span className="text-[10px] font-semibold text-blue-600">Excellent Oxygenation</span>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs">
@@ -80,7 +80,7 @@ export const VitalsChart: React.FC<VitalsChartProps> = ({ vitalsHistory }) => {
                 <td className="p-3 font-semibold">{v.recordedAt}</td>
                 <td className="p-3 font-mono">{v.bloodPressureSys}/{v.bloodPressureDia} mmHg</td>
                 <td className="p-3">{v.heartRateBpm} bpm</td>
-                <td className="p-3 font-semibold text-teal-600 dark:text-teal-400">{v.spo2Percent}%</td>
+                <td className="p-3 font-semibold text-sky-600 dark:text-sky-400">{v.spo2Percent}%</td>
                 <td className="p-3">{v.weightKg} kg</td>
                 <td className="p-3 font-bold">{v.bmi}</td>
                 <td className="p-3 text-slate-400">{v.recordedBy}</td>

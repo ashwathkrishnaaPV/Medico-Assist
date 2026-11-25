@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, Stethoscope, Users, CheckCircle2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { healthStore } from '../../services/healthStore';
 import { HealthCalendarEvent } from '../../types';
 
@@ -23,7 +23,7 @@ export const MedicalCalendar: React.FC = () => {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <CalendarIcon className="w-6 h-6 text-teal-600" />
+            <CalendarIcon className="w-6 h-6 text-sky-600" />
             <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Medical Centre Clinic Schedule</h1>
           </div>
           <p className="text-xs text-slate-500 mt-1">
@@ -35,7 +35,7 @@ export const MedicalCalendar: React.FC = () => {
       {/* Events Roster */}
       <div className="card-clinical p-6 space-y-4">
         <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-teal-600" /> Clinic Appointments Ledger
+          <Clock className="w-4 h-4 text-sky-600" /> Clinic Appointments Ledger
         </h3>
 
         {events.length === 0 ? (
@@ -47,16 +47,16 @@ export const MedicalCalendar: React.FC = () => {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100 text-sm">
                     <span>{ev.title}</span>
-                    <span className="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 text-[10px] font-bold">
+                    <span className="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 text-[10px] font-bold">
                       {ev.eventType}
                     </span>
                   </div>
-                  <div className="text-teal-600 font-semibold">{ev.date} at {ev.time}</div>
+                  <div className="text-sky-600 font-semibold">{ev.date} at {ev.time}</div>
                   {ev.notes && <p className="text-slate-400 italic text-[11px]">{ev.notes}</p>}
                 </div>
 
                 <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold ${
-                  ev.status === 'Completed' ? 'bg-slate-200 text-slate-700' : 'bg-teal-600 text-white'
+                  ev.status === 'Completed' ? 'bg-slate-200 text-slate-700' : 'bg-sky-600 text-white'
                 }`}>
                   {ev.status}
                 </span>

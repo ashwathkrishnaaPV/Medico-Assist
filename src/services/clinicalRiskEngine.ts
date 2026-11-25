@@ -147,8 +147,7 @@ export function evaluateMLRiskStratification(input: ClinicalRiskInput): RiskEval
     vitals = {},
     symptomSeverity = 0,
     chronicConditions = [],
-    medicationAdherent = true,
-    bmi = 22.0
+    medicationAdherent = true
   } = input;
 
   const sbp = vitals.bloodPressureSys || BASELINE_VITALS.bloodPressureSys;

@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  HeartPulse,
   GraduationCap,
   Stethoscope,
   ShieldCheck,
@@ -12,623 +11,369 @@ import {
   Eye,
   EyeOff,
   Sparkles,
-  User,
   PlusCircle,
   LogIn,
-  ChevronDown
+  Database
 } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { healthStore } from '../../services/healthStore';
-import { Role, StudentProfileData } from '../../types';
+import { Role } from '../../types';
+import { StudentRegisterForm } from './StudentRegisterForm';
+
+import { DEPARTMENTS } from '../../constants/departments';
+export { DEPARTMENTS };
 
 interface LoginPageProps {
   onLoginSuccess: (role: Role) => void;
 }
 
-const DEPARTMENTS = [
-  'Computer Science', 'Information Technology', 'Electronics & Communication',
-  'Electrical Engineering', 'Mechanical Engineering', 'Civil Engineering',
-  'Biotechnology', 'Chemical Engineering', 'Physics', 'Mathematics',
-  'Chemistry', 'Business Administration', 'Commerce', 'Arts & Humanities', 'Other'
-];
-
-const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
-
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [authMode, setAuthMode] = useState<'SIGN_IN' | 'CREATE_ACCOUNT'>('SIGN_IN');
-  const [role, setRole] = useState<Role>('STUDENT');
 
   // Sign In
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showRegPassword, setShowRegPassword] = useState(false);
-  const [showRegConfirm, setShowRegConfirm] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [registeredUsers, setRegisteredUsers] = useState<{ id: string; name: string; email: string; role: string }[]>([]);
+  const passwordInputRef = React.useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    authService.getUsers().then(users => setRegisteredUsers(users as any[]));
-  }, []);
-
-  // Create Account — minimal student fields
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [age, setAge] = useState('');
-  const [gender, setGender] = useState('');
-  const [year, setYear] = useState('1st Year');
-  const [department, setDepartment] = useState('Computer Science');
-
-  // Staff fields
-  const [staffId, setStaffId] = useState('');
-  const [title, setTitle] = useState('Campus Medical Practitioner');
+  const formatError = (err: unknown, fallback: string): string => {
+    if (!err) return fallback;
+    if (typeof err === 'string') return err;
+    const maybeAxios = err as {
+      response?: { data?: { error?: string | { message?: string }; message?: string } };
+      message?: string;
+    };
+    const apiErr = maybeAxios.response?.data?.error;
+    if (typeof apiErr === 'string') return apiErr;
+    if (typeof apiErr === 'object' && apiErr !== null && apiErr.message) {
+      return String(apiErr.message);
+    }
+    if (maybeAxios.response?.data?.message) {
+      return String(maybeAxios.response.data.message);
+    }
+    if (maybeAxios.message && typeof maybeAxios.message === 'string') {
+      return maybeAxios.message;
+    }
+    return fallback;
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setSuccessMessage(null);
     setIsSubmitting(true);
     try {
       if (!loginEmail.trim()) throw new Error('Please enter your email address.');
+      if (!loginPassword) throw new Error('Please enter your password.');
       const user = await authService.login(loginEmail, loginPassword);
-      if (!user) throw new Error('No account found. Click "Create Account" to register.');
       await healthStore.loadFromAPI();
       setIsSubmitting(false);
       onLoginSuccess(user.role);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setIsSubmitting(false);
-      setErrorMessage(err.response?.data?.error || err.message || 'Failed to authenticate.');
+      setErrorMessage(formatError(err, 'Failed to authenticate.'));
     }
   };
 
-  const handleQuickLogin = async (emailToLogin: string, roleToSelect: Role) => {
+  const handlePrefillDevPersona = (emailToLogin: string, label: string) => {
+    setErrorMessage(null);
     setLoginEmail(emailToLogin);
-    setLoginPassword('Password@123');
-    setIsSubmitting(true);
-    setErrorMessage(null);
-    try {
-      const user = await authService.login(emailToLogin, 'Password@123');
-      if (user) {
-        await healthStore.loadFromAPI();
-        setIsSubmitting(false);
-        onLoginSuccess(user.role);
-        return;
-      }
-    } catch {
-      // Auto-register demo persona if not yet created in persistent DB
-      try {
-        const newUser = await authService.registerUser({
-          name: roleToSelect === 'STUDENT' ? 'Alex Rivera' : roleToSelect === 'MEDICAL_STAFF' ? 'Dr. Sarah Jenkins' : roleToSelect === 'RESEARCHER' ? 'Prof. David Vance' : roleToSelect === 'EMERGENCY_RESPONDER' ? 'Campus Paramedic Unit' : 'Campus Administrator',
-          email: emailToLogin,
-          password: 'Password@123',
-          role: roleToSelect,
-          studentId: roleToSelect === 'STUDENT' ? 'STU1023' : undefined,
-          staffId: roleToSelect !== 'STUDENT' ? 'STAFF_' + roleToSelect.slice(0, 3) : undefined,
-          department: 'Campus Health & Research'
-        });
-        await healthStore.loadFromAPI();
-        setIsSubmitting(false);
-        onLoginSuccess(newUser.role);
-        return;
-      } catch (e: any) {
-        setErrorMessage(e.message || 'Quick login failed.');
-      }
-    }
-    setIsSubmitting(false);
+    setLoginPassword('');
+    setSuccessMessage(`Email pre-filled for ${label}. Enter password to sign in.`);
+    passwordInputRef.current?.focus();
   };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-    setIsSubmitting(true);
-
-    if (password !== confirmPassword) {
-      setIsSubmitting(false);
-      setErrorMessage('Passwords do not match.');
-      return;
-    }
-
-    try {
-      if (!name.trim() || !email.trim() || !password.trim()) {
-        throw new Error('Please fill in all required fields.');
-      }
-      if (role === 'STUDENT' && (!age || !gender)) {
-        throw new Error('Please fill in your age and gender.');
-      }
-
-      const generatedStudentId = `STU${Math.floor(1000 + Math.random() * 9000)}`;
-      const generatedStaffId = staffId.trim() || (role === 'MEDICAL_STAFF'
-        ? `DOC${Math.floor(100 + Math.random() * 900)}`
-        : `ADM${Math.floor(100 + Math.random() * 900)}`);
-
-      const newUser = await authService.registerUser({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        password,
-        role,
-        studentId: role === 'STUDENT' ? generatedStudentId : undefined,
-        staffId: role !== 'STUDENT' ? generatedStaffId : undefined,
-        department: role === 'STUDENT' ? department : undefined,
-        title: role !== 'STUDENT' ? title : undefined
-      });
-
-      // Create minimal student profile — profileComplete: false triggers onboarding
-      if (role === 'STUDENT') {
-        const profileData: StudentProfileData = {
-          id: `prof_${newUser.id}`,
-          studentId: generatedStudentId,
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          age: parseInt(age) || 0,
-          dob: '',
-          gender,
-          department,
-          year,
-          ugOrPg: '',
-          accommodation: '',
-          hostelBlock: '',
-          hostelRoom: '',
-          phone: '',
-          bloodGroup: '',
-          emergencyContact: { name: '', relation: '', phone: '' },
-          medicalCentreContact: '+91-44-2257-0000',
-          criticalAllergies: [],
-          criticalConditions: [],
-          criticalMedications: [],
-          heightCm: 0,
-          weightKg: 0,
-          bmi: 0,
-          lastUpdated: new Date().toISOString().split('T')[0],
-          profileComplete: false
-        };
-        healthStore.createOrUpdateStudentProfile(profileData);
-      }
-
-      setIsSubmitting(false);
-      setSuccessMessage('Account created! Redirecting…');
-      setTimeout(() => onLoginSuccess(newUser.role), 500);
-    } catch (err: any) {
-      setIsSubmitting(false);
-      setErrorMessage(err.response?.data?.error || err.message || 'Registration failed.');
-    }
-  };
-
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex flex-col justify-between relative overflow-hidden font-sans">
+    <div className="min-h-screen flex flex-col lg:flex-row font-sans selection:bg-[#1A3D63] selection:text-white">
 
-      {/* Background Glows */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-emerald-600/20 blur-3xl pointer-events-none" />
-      <div className="absolute top-1/2 -right-40 w-96 h-96 rounded-full bg-teal-600/15 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 left-1/3 w-96 h-96 rounded-full bg-indigo-600/15 blur-3xl pointer-events-none" />
+      {/* ════════════════════════════════════════════════════════════
+          LEFT 50% — PRISTINE WHITE (#FFFFFF) WITH SECE BRAND ACCENTS
+      ════════════════════════════════════════════════════════════ */}
+      <div className="w-full lg:w-1/2 bg-white text-[#0A1931] relative flex flex-col justify-between p-8 sm:p-12 lg:p-16 border-r border-[#B3CFE5]/50 overflow-hidden">
 
-      {/* Header */}
-      <header className="relative z-10 max-w-7xl w-full mx-auto px-6 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="flex items-center bg-white px-2.5 py-1.5 rounded-2xl shadow-md border border-slate-200">
+        {/* Ambient Decorative Background Glows matching #B3CFE5 & #4A7FA7 */}
+        <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full bg-[#B3CFE5]/20 blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 -right-32 w-96 h-96 rounded-full bg-[#E8F2FA] blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 left-1/4 w-80 h-80 rounded-full bg-[#B3CFE5]/25 blur-3xl pointer-events-none" />
+
+        {/* Top Header & College Logo (No shape, blends seamlessly with white background) */}
+        <div className="relative z-10">
+          <div className="flex items-center gap-5">
             <img
-              src="/college-logo.webp"
+              src="/college-logo.png"
               alt="Sri Eshwar College of Engineering"
-              className="h-9 sm:h-10 w-auto object-contain"
+              className="h-24 sm:h-28 md:h-32 w-auto object-contain"
             />
-          </div>
-          <div className="hidden sm:block h-8 w-px bg-gray-700" />
-          <div>
-            <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-blue-400 bg-clip-text text-transparent">
-              CampusHealth
-            </span>
-            <p className="text-xs text-gray-400 font-medium">Integrated Medical Intelligence Platform</p>
-          </div>
-        </div>
-        <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gray-900 border border-gray-700 text-xs text-gray-300 font-semibold">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>Secure · Persistent Database</span>
-        </div>
-      </header>
-
-      {/* Main */}
-      <main className="relative z-10 max-w-7xl w-full mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-
-        {/* Left — Hero */}
-        <div className="lg:col-span-6 space-y-8">
-          <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Zero Demo Data · Fully Persistent</span>
+            <div className="h-16 w-px bg-[#B3CFE5] hidden sm:block" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-2xl sm:text-3xl tracking-tight text-[#0A1931]">
+                  CampusHealth
+                </span>
+                <span className="px-3 py-0.5 rounded-full bg-[#1A3D63] text-white text-[10px] font-bold uppercase tracking-wider">
+                  v2.5
+                </span>
+              </div>
+              <p className="text-sm text-[#1A3D63] font-semibold mt-0.5">Sri Eshwar College of Engineering</p>
             </div>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
+          </div>
+        </div>
+
+        {/* Center Hero Content */}
+        <div className="relative z-10 py-10 lg:py-0 space-y-8 my-auto">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-[#F6FAFD] border border-[#B3CFE5] text-[#1A3D63] text-xs font-semibold shadow-xs">
+              <Sparkles className="w-3.5 h-3.5 text-[#1A3D63]" />
+              <span>CarePlus Integrated Clinical Intelligence</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#0A1931] leading-tight">
               Your Campus<br />
-              <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1A3D63] via-[#4A7FA7] to-[#1A3D63]">
                 Medical Companion.
               </span>
             </h1>
-            <p className="text-gray-300 text-sm sm:text-base leading-relaxed max-w-xl">
-              Prescriptions, visits, nutrition plans, and emergency cards — all in one secure platform built for students and medical staff.
+
+            <p className="text-[#4A7FA7] text-sm sm:text-base leading-relaxed max-w-lg">
+              Prescriptions, visits, clinical triage, nutrition plans, and emergency QR cards — unified in one secure healthcare workspace.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* 3 Medical Pillar Cards (Cylindrical Capsule Horizontal Layout) */}
+          <div className="space-y-3.5">
             {[
-              { icon: <GraduationCap className="w-5 h-5" />, color: 'emerald', title: 'Student Portal', desc: 'Health records, prescriptions & daily check-ins.' },
-              { icon: <Stethoscope className="w-5 h-5" />, color: 'teal', title: 'Medical Centre', desc: 'Clinical consultations, diagnosis & monitoring.' },
-              { icon: <ShieldCheck className="w-5 h-5" />, color: 'indigo', title: 'Admin Console', desc: 'User management, RBAC & full audit trails.' }
+              {
+                icon: <GraduationCap className="w-5 h-5 text-white" />,
+                title: 'Student Wellness Portal',
+                desc: 'Electronic health ledger, active prescriptions & check-ins.'
+              },
+              {
+                icon: <Stethoscope className="w-5 h-5 text-white" />,
+                title: 'Medical Centre EHR',
+                desc: 'Clinical consults, triage & CDSS prescription logs.'
+              },
+              {
+                icon: <ShieldCheck className="w-5 h-5 text-white" />,
+                title: 'Admin Enterprise Console',
+                desc: 'RBAC controls, user directory & HIPAA audit trails.'
+              }
             ].map((card) => (
-              <div key={card.title} className={`p-4 rounded-2xl bg-gray-900 border border-${card.color}-500/25 space-y-2`}>
-                <div className={`p-2 w-fit rounded-xl bg-${card.color}-500/15 text-${card.color}-400`}>{card.icon}</div>
-                <h3 className="font-bold text-sm text-white">{card.title}</h3>
-                <p className="text-gray-400 text-xs">{card.desc}</p>
+              <div
+                key={card.title}
+                className="p-2.5 pr-6 rounded-full bg-[#F6FAFD] border-2 border-[#B3CFE5]/60 hover:bg-[#EBF3FA] hover:border-[#1A3D63]/40 transition-all flex items-center gap-4 group shadow-xs"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#1A3D63] border border-[#B3CFE5]/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                  {card.icon}
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-[#0A1931]">{card.title}</h3>
+                  <p className="text-[#4A7FA7] text-xs leading-snug">{card.desc}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right — Auth Card */}
-        <div className="lg:col-span-6">
-          <div className="bg-gray-900 border border-gray-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+        {/* Bottom Left Trust Indicators (Cylinder Capsules) */}
+        <div className="relative z-10 pt-6 border-t border-[#B3CFE5]/40 flex flex-wrap items-center justify-between gap-3 text-xs text-[#4A7FA7]">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#F6FAFD] border border-[#B3CFE5] font-medium text-[#1A3D63]">
+            <Lock className="w-4 h-4 text-[#1A3D63]" />
+            <span>TLS 1.3 · HIPAA Certified</span>
+          </div>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#F6FAFD] border border-[#B3CFE5] font-medium text-[#1A3D63]">
+            <Database className="w-4 h-4 text-[#1A3D63]" />
+            <span>MongoDB Database Connected</span>
+          </div>
+        </div>
 
-            {/* Header & Toggle */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-white">
-                    {authMode === 'SIGN_IN' ? 'Sign In' : 'Create Account'}
-                  </h2>
-                  <p className="text-sm text-gray-400 mt-1">
-                    {authMode === 'SIGN_IN'
-                      ? 'Log in with your registered credentials.'
-                      : 'Quick setup — medical details collected after login.'}
-                  </p>
-                </div>
-                <div className="px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 font-bold text-[10px] uppercase tracking-wider border border-emerald-500/30">
-                  DB Live
-                </div>
-              </div>
+      </div>
 
-              {/* Mode Toggle */}
-              <div className="grid grid-cols-2 p-1 bg-gray-950 rounded-2xl border border-gray-800 text-sm font-bold">
-                {(['SIGN_IN', 'CREATE_ACCOUNT'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => { setAuthMode(mode); setErrorMessage(null); setSuccessMessage(null); }}
-                    className={`py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 ${
-                      authMode === mode
-                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    {mode === 'SIGN_IN' ? <LogIn className="w-4 h-4" /> : <PlusCircle className="w-4 h-4" />}
-                    <span>{mode === 'SIGN_IN' ? 'Sign In' : 'Create Account'}</span>
-                  </button>
-                ))}
-              </div>
+      {/* ════════════════════════════════════════════════════════════
+          RIGHT 50% — PRISTINE ICE WHITE (#F6FAFD) WITH CYLINDER SHAPES
+      ════════════════════════════════════════════════════════════ */}
+      <div className="w-full lg:w-1/2 bg-[#F6FAFD] text-[#0A1931] flex flex-col justify-between p-6 sm:p-10 lg:p-14 overflow-y-auto">
+
+        {/* Top Right Status Pill (Cylinder) */}
+        <div className="flex items-center justify-end">
+          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white border-2 border-[#B3CFE5] text-xs text-[#1A3D63] font-bold shadow-sm">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>PostgreSQL · Live Connected</span>
+          </div>
+        </div>
+
+        {/* Form Container (Centered Vertically) */}
+        <div className="max-w-md w-full mx-auto my-auto py-6 space-y-6">
+
+          {/* Form Header */}
+          <div className="space-y-1">
+            <h2 className="text-2xl sm:text-3xl font-black text-[#0A1931] tracking-tight">
+              {authMode === 'SIGN_IN' ? 'Sign In to Portal' : 'Create an Account'}
+            </h2>
+            <p className="text-sm text-[#4A7FA7]">
+              {authMode === 'SIGN_IN'
+                ? 'Enter your institutional email and password to continue.'
+                : 'Get started in under a minute. Quick setup for campus members.'}
+            </p>
+          </div>
+
+          {/* Cylindrical Mode Switcher (Segmented Cylinder Bar like image) */}
+          <div className="p-1.5 bg-white rounded-full border-2 border-[#B3CFE5] shadow-[0_6px_20px_rgba(10,25,49,0.06)] grid grid-cols-2 gap-1.5">
+            {(['SIGN_IN', 'CREATE_ACCOUNT'] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => { setAuthMode(mode); setErrorMessage(null); setSuccessMessage(null); }}
+                className={`py-3 px-6 rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer font-bold text-sm ${
+                  authMode === mode
+                    ? 'bg-gradient-to-r from-[#1A3D63] to-[#4A7FA7] text-white shadow-md shadow-[#1A3D63]/30 scale-[1.01]'
+                    : 'text-[#1A3D63] hover:bg-[#B3CFE5]/20'
+                }`}
+              >
+                {mode === 'SIGN_IN' ? <LogIn className="w-4 h-4" /> : <PlusCircle className="w-4 h-4" />}
+                <span>{mode === 'SIGN_IN' ? 'Sign In' : 'Create Account'}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Feedback Banners (Cylinder Pill Shape) */}
+          {errorMessage && (
+            <div className="px-5 py-3 rounded-full bg-rose-50 border-2 border-rose-200 text-rose-800 text-sm flex items-center gap-3 animate-fade-in shadow-xs">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
+              <span className="font-semibold text-xs">
+                {typeof errorMessage === 'string' ? errorMessage : (errorMessage as any)?.message || String(errorMessage)}
+              </span>
             </div>
+          )}
+          {successMessage && (
+            <div className="px-5 py-3 rounded-full bg-[#B3CFE5]/30 border-2 border-[#B3CFE5] text-[#0A1931] text-sm flex items-center gap-3 animate-fade-in shadow-xs">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-[#1A3D63]" />
+              <span className="font-semibold text-xs">
+                {typeof successMessage === 'string' ? successMessage : (successMessage as any)?.message || String(successMessage)}
+              </span>
+            </div>
+          )}
 
-            {/* Banners */}
-            {errorMessage && (
-              <div className="p-3.5 rounded-xl bg-red-950 border border-red-700 text-red-200 text-sm flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-            {successMessage && (
-              <div className="p-3.5 rounded-xl bg-emerald-950 border border-emerald-700 text-emerald-200 text-sm flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                <span>{successMessage}</span>
-              </div>
-            )}
-
-            {/* ─── SIGN IN FORM ─── */}
-            {authMode === 'SIGN_IN' ? (
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-gray-200">Email Address</label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="you@college.edu"
-                      value={loginEmail}
-                      onChange={e => setLoginEmail(e.target.value)}
-                      className="w-full pl-10 pr-3 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/40"
-                    />
-                  </div>
+          {/* ─── SIGN IN FORM (All Inputs & Buttons in Cylindrical Shapes) ─── */}
+          {authMode === 'SIGN_IN' ? (
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#1A3D63] pl-2">
+                  Institutional Email
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-[#4A7FA7] absolute left-4 top-3.5 pointer-events-none" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="e.g. ashwathkrishnaa.pv2024cce@sece.ac.in"
+                    value={loginEmail}
+                    onChange={e => setLoginEmail(e.target.value)}
+                    className="w-full pl-11 pr-5 py-3.5 rounded-full bg-white border-2 border-[#B3CFE5] text-[#0A1931] placeholder-[#4A7FA7]/60 text-sm focus:outline-none focus:border-[#1A3D63] focus:ring-4 focus:ring-[#1A3D63]/10 transition-all shadow-xs"
+                  />
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-gray-200">Password</label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      placeholder="••••••••"
-                      value={loginPassword}
-                      onChange={e => setLoginPassword(e.target.value)}
-                      className="w-full pl-10 pr-10 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/40"
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-3.5 text-gray-500 hover:text-gray-300">
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#1A3D63] pl-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-[#4A7FA7] absolute left-4 top-3.5 pointer-events-none" />
+                  <input
+                    ref={passwordInputRef}
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={e => setLoginPassword(e.target.value)}
+                    className="w-full pl-11 pr-12 py-3.5 rounded-full bg-white border-2 border-[#B3CFE5] text-[#0A1931] placeholder-[#4A7FA7]/60 text-sm focus:outline-none focus:border-[#1A3D63] focus:ring-4 focus:ring-[#1A3D63]/10 transition-all shadow-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-3.5 text-[#4A7FA7] hover:text-[#0A1931] transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
+              </div>
 
-                {registeredUsers.length === 0 && (
-                  <div className="p-3.5 rounded-xl bg-amber-950 border border-amber-700 text-amber-200 text-sm space-y-1">
-                    <p className="font-bold">No accounts found.</p>
-                    <p className="text-amber-300 text-xs">Switch to <strong>Create Account</strong> to register your first profile.</p>
-                  </div>
+              {/* Cylindrical Primary Action Button */}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-4 rounded-full bg-gradient-to-r from-[#1A3D63] via-[#1A3D63] to-[#4A7FA7] hover:from-[#0A1931] hover:to-[#1A3D63] text-white font-bold text-sm shadow-[0_10px_25px_rgba(26,61,99,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 mt-2"
+              >
+                {isSubmitting ? (
+                  <span>Authenticating…</span>
+                ) : (
+                  <>
+                    <span>Sign In to Workspace</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 )}
+              </button>
 
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? 'Authenticating…' : <><span>Sign In to Workspace</span><ArrowRight className="w-4 h-4" /></>}
-                </button>
-
-                {/* 1-Click Evaluation Demo Personas */}
-                <div className="pt-3 border-t border-gray-800 space-y-2">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-gray-400">
-                    <span>1-Click Evaluation Personas:</span>
-                    <span className="text-[10px] text-emerald-400 font-semibold">Demo Ready</span>
+              {/* Development-only Email Prefill Helper (strict bcrypt auth required) */}
+              {import.meta.env.DEV && (
+                <div className="pt-4 border-t border-[#B3CFE5]/50 space-y-2.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-[#4A7FA7] px-2">
+                    <span>Dev Account Email Prefill:</span>
+                    <span className="text-[10px] text-[#1A3D63] font-bold bg-white px-3 py-1 rounded-full border border-[#B3CFE5] shadow-xs">
+                      DEV Mode
+                    </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-[11px]">
+
+                  <div className="p-1.5 bg-white rounded-full border-2 border-[#B3CFE5] shadow-xs grid grid-cols-3 gap-1.5">
                     <button
                       type="button"
-                      onClick={() => handleQuickLogin('alex@sece.ac.in', 'STUDENT')}
-                      className="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-emerald-300 border border-emerald-900 font-semibold text-center transition-all"
+                      onClick={() => handlePrefillDevPersona('nivetha@sece.ac.in', 'Dr. Nivetha')}
+                      className="py-2.5 px-2 rounded-full bg-[#F6FAFD] hover:bg-[#B3CFE5]/30 text-[#1A3D63] font-bold text-[11px] text-center transition-all cursor-pointer shadow-2xs hover:scale-[1.02] truncate"
+                      title="Pre-fill Dr. Nivetha email"
                     >
-                      🎓 Student
+                      🩺 Dr. Nivetha
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleQuickLogin('jenkins@sece.ac.in', 'MEDICAL_STAFF')}
-                      className="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-teal-300 border border-teal-900 font-semibold text-center transition-all"
-                    >
-                      🩺 Doctor
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLogin('admin@sece.ac.in', 'ADMIN')}
-                      className="p-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-indigo-300 border border-indigo-900 font-semibold text-center transition-all"
+                      onClick={() => handlePrefillDevPersona('admin@sece.ac.in', 'Campus Admin')}
+                      className="py-2.5 px-2 rounded-full bg-[#F6FAFD] hover:bg-[#B3CFE5]/30 text-[#1A3D63] font-bold text-[11px] text-center transition-all cursor-pointer shadow-2xs hover:scale-[1.02] truncate"
+                      title="Pre-fill Admin email"
                     >
                       🛡️ Admin
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePrefillDevPersona('ashwathkrishnaa.pv2024cce@sece.ac.in', 'Ashwath (24CC006)')}
+                      className="py-2.5 px-2 rounded-full bg-[#F6FAFD] hover:bg-[#B3CFE5]/30 text-[#1A3D63] font-bold text-[11px] text-center transition-all cursor-pointer shadow-2xs hover:scale-[1.02] truncate"
+                      title="Pre-fill Student (Ashwath) email"
+                    >
+                      🎓 Student
+                    </button>
                   </div>
                 </div>
-              </form>
+              )}
+            </form>
+          ) : (
+            <StudentRegisterForm
+              onSuccess={onLoginSuccess}
+              onError={setErrorMessage}
+              onStatus={setSuccessMessage}
+              formatError={formatError}
+            />
+          )}
 
-            ) : (
-              /* ─── CREATE ACCOUNT FORM ─── */
-              <form onSubmit={handleRegister} className="space-y-4">
-
-                {/* Role Selection */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-200">Account Type</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { r: 'STUDENT' as Role, label: 'Student', icon: <GraduationCap className="w-4 h-4" />, color: 'emerald' },
-                      { r: 'MEDICAL_STAFF' as Role, label: 'Medical Staff', icon: <Stethoscope className="w-4 h-4" />, color: 'teal' },
-                      { r: 'ADMIN' as Role, label: 'Admin', icon: <ShieldCheck className="w-4 h-4" />, color: 'indigo' },
-                    ].map(({ r, label, icon, color }) => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => setRole(r)}
-                        className={`p-2.5 rounded-xl border text-center transition-all text-xs ${
-                          role === r
-                            ? `bg-${color}-950 border-${color}-500 text-${color}-300 font-bold`
-                            : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-gray-500'
-                        }`}
-                      >
-                        <div className={`w-4 h-4 mx-auto mb-1 ${role === r ? `text-${color}-400` : 'text-gray-500'}`}>{icon}</div>
-                        <span>{label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Common fields */}
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-gray-200">Full Name <span className="text-red-400">*</span></label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Arjun Sharma"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      className="w-full pl-10 pr-3 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-gray-200">Email Address <span className="text-red-400">*</span></label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
-                    <input
-                      type="email"
-                      required
-                      placeholder="arjun@college.edu"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      className="w-full pl-10 pr-3 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-semibold text-gray-200">Password <span className="text-red-400">*</span></label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
-                      <input
-                        type={showRegPassword ? 'text' : 'password'}
-                        required
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        className="w-full pl-10 pr-9 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-                      />
-                      <button type="button" onClick={() => setShowRegPassword(!showRegPassword)} className="absolute right-3 top-3.5 text-gray-500 hover:text-gray-300">
-                        {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-semibold text-gray-200">Confirm Password <span className="text-red-400">*</span></label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-gray-500 absolute left-3.5 top-3.5" />
-                      <input
-                        type={showRegConfirm ? 'text' : 'password'}
-                        required
-                        placeholder="••••••••"
-                        value={confirmPassword}
-                        onChange={e => setConfirmPassword(e.target.value)}
-                        className="w-full pl-10 pr-9 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-                      />
-                      <button type="button" onClick={() => setShowRegConfirm(!showRegConfirm)} className="absolute right-3 top-3.5 text-gray-500 hover:text-gray-300">
-                        {showRegConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Student-only quick fields */}
-                {role === 'STUDENT' && (
-                  <div className="space-y-3 pt-3 border-t border-gray-700">
-                    <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Basic Student Info</p>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className="block text-sm font-semibold text-gray-200">Age <span className="text-red-400">*</span></label>
-                        <input
-                          type="number"
-                          required
-                          placeholder="e.g. 19"
-                          min={15}
-                          max={40}
-                          value={age}
-                          onChange={e => setAge(e.target.value)}
-                          className="w-full px-3 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="block text-sm font-semibold text-gray-200">Gender <span className="text-red-400">*</span></label>
-                        <div className="relative">
-                          <select
-                            required
-                            value={gender}
-                            onChange={e => setGender(e.target.value)}
-                            className="w-full px-3 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white focus:outline-none focus:border-emerald-500 appearance-none"
-                          >
-                            <option value="">Select…</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                            <option value="Prefer not to say">Prefer not to say</option>
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-gray-500 absolute right-3 top-3.5 pointer-events-none" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className="block text-sm font-semibold text-gray-200">Class / Year <span className="text-red-400">*</span></label>
-                        <div className="relative">
-                          <select
-                            value={year}
-                            onChange={e => setYear(e.target.value)}
-                            className="w-full px-3 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white focus:outline-none focus:border-emerald-500 appearance-none"
-                          >
-                            {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-gray-500 absolute right-3 top-3.5 pointer-events-none" />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="block text-sm font-semibold text-gray-200">Department <span className="text-red-400">*</span></label>
-                        <div className="relative">
-                          <select
-                            value={department}
-                            onChange={e => setDepartment(e.target.value)}
-                            className="w-full px-3 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white focus:outline-none focus:border-emerald-500 appearance-none"
-                          >
-                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-gray-500 absolute right-3 top-3.5 pointer-events-none" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-emerald-950/50 border border-emerald-800/50 text-emerald-300 text-xs flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
-                      <span>Medical details, blood group, emergency contacts & hostel info will be collected after login in a guided form.</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Staff-only fields */}
-                {role !== 'STUDENT' && (
-                  <div className="space-y-3 pt-3 border-t border-gray-700">
-                    <p className="text-xs font-bold text-teal-400 uppercase tracking-widest">
-                      {role === 'MEDICAL_STAFF' ? 'Staff Credentials' : 'Admin Details'}
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className="block text-sm font-semibold text-gray-200">Staff ID</label>
-                        <input
-                          type="text"
-                          placeholder={role === 'MEDICAL_STAFF' ? 'DOC402' : 'ADM001'}
-                          value={staffId}
-                          onChange={e => setStaffId(e.target.value)}
-                          className="w-full px-3 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-teal-500"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="block text-sm font-semibold text-gray-200">Professional Title</label>
-                        <input
-                          type="text"
-                          placeholder={role === 'MEDICAL_STAFF' ? 'Senior Campus Physician' : 'Director of Operations'}
-                          value={title}
-                          onChange={e => setTitle(e.target.value)}
-                          className="w-full px-3 py-3 rounded-xl bg-gray-800 border border-gray-600 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-teal-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? 'Creating Account…' : <><span>Create Account</span><ArrowRight className="w-4 h-4" /></>}
-                </button>
-              </form>
-            )}
-
-            <div className="pt-2 border-t border-gray-800 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
-              <Lock className="w-3.5 h-3.5 text-emerald-500" />
-              <span>TLS 1.3 Encrypted · Persistent Database Storage</span>
-            </div>
-          </div>
         </div>
-      </main>
 
-      <footer className="relative z-10 border-t border-gray-900 py-5 text-center text-xs text-gray-600">
-        CampusHealth Integrated Medical Platform © 2026 · All Rights Reserved
-      </footer>
+        {/* Footer */}
+        <footer className="pt-4 border-t border-[#B3CFE5]/50 text-center text-xs text-[#4A7FA7]">
+          CampusHealth Integrated Medical Platform © 2026 · Sri Eshwar College of Engineering
+        </footer>
+
+      </div>
+
     </div>
   );
 };

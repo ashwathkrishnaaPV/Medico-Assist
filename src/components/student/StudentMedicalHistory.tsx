@@ -1,27 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { History, Stethoscope, FileText, Activity, Pill, Apple, Calendar, ChevronDown, ChevronUp, Lock } from 'lucide-react';
+import { History, FileText, Lock } from 'lucide-react';
 import { healthStore } from '../../services/healthStore';
 import { buildUnifiedHealthTimeline } from '../../services/longitudinalAnalytics';
 import { StudentHealthTimeline } from '../common/StudentHealthTimeline';
-import { MedicalVisit, LabReport, HealthTimelineEvent } from '../../types';
+import { LabReport, HealthTimelineEvent } from '../../types';
 import { authService } from '../../services/authService';
 
 export const StudentMedicalHistory: React.FC = () => {
   const currentUser = authService.getCurrentUser();
   const studentId = currentUser.studentId || currentUser.id;
-  const [visits, setVisits] = useState<MedicalVisit[]>([]);
   const [labReports, setLabReports] = useState<LabReport[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<HealthTimelineEvent[]>([]);
-  const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = () => {
       if (studentId) {
         const v = healthStore.getVisitsForStudent(studentId);
-        setVisits(v);
-        if (v.length > 0 && !expandedVisitId) {
-          setExpandedVisitId(v[0].id);
-        }
         setLabReports(healthStore.getLabReports(studentId));
 
         const rx = healthStore.getPrescriptionsForStudent(studentId);
@@ -52,7 +46,7 @@ export const StudentMedicalHistory: React.FC = () => {
       <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <History className="w-6 h-6 text-emerald-600" /> Unified Longitudinal Health Ledger
+            <History className="w-6 h-6 text-blue-600" /> Unified Longitudinal Health Ledger
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Complete chronologically verified stream of consultations, prescription version changes, daily monitoring logs, and emergency access audits.

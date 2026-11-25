@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Search, UserPlus, CheckCircle2, XCircle } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { healthStore } from '../../services/healthStore';
 import { StudentProfileData } from '../../types';
 
@@ -69,10 +69,10 @@ export const StudentManagement: React.FC = () => {
                     <td className="p-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">{s.studentId}</td>
                     <td className="p-3 font-bold text-slate-900 dark:text-white">{s.name}</td>
                     <td className="p-3">{s.department} ({s.year})</td>
-                    <td className="p-3 font-extrabold text-rose-600 dark:text-rose-400">{s.bloodGroup}</td>
-                    <td className="p-3">{s.emergencyContact?.name} ({s.emergencyContact?.phone})</td>
+                    <td className="p-3 font-extrabold text-rose-600 dark:text-rose-400">{s.bloodGroup || '—'}</td>
+                    <td className="p-3">{s.emergencyContact?.name ? `${s.emergencyContact.name} (${s.emergencyContact.phone})` : '—'}</td>
                     <td className="p-3">
-                      <span className="px-2.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold text-[10px] border border-emerald-200 dark:border-emerald-800">ACTIVE</span>
+                      <span className="px-2.5 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 font-bold text-[10px] border border-blue-200 dark:border-blue-800">ACTIVE</span>
                     </td>
                   </tr>
                 ))

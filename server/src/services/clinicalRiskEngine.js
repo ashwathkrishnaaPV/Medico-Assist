@@ -142,18 +142,13 @@ function evaluateMLRiskStratification(input) {
     vitals = {},
     symptomSeverity = 0,
     chronicConditions = [],
-    medicationAdherent = true,
-    age = 20,
-    bmi = 22.0,
-    symptoms = []
+    medicationAdherent = true
   } = input;
 
   const sbp = vitals.bloodPressureSys || BASELINE_VITALS.bloodPressureSys;
-  const dbp = vitals.bloodPressureDia || BASELINE_VITALS.bloodPressureDia;
   const hr = vitals.heartRateBpm || BASELINE_VITALS.heartRateBpm;
   const spo2 = vitals.spo2Percent || BASELINE_VITALS.spo2Percent;
   const temp = vitals.temperatureF || BASELINE_VITALS.temperatureF;
-  const patientBmi = vitals.bmi || bmi || BASELINE_VITALS.bmi;
 
   const contributions = [];
   let logOdds = -2.4; // Base collegiate population log-odds prior for elevated risk

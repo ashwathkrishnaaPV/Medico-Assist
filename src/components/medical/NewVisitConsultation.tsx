@@ -1,10 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Stethoscope, Activity, Pill, Apple, Calendar, Save, CheckCircle2, Plus, Trash2, Brain, Sparkles, AlertTriangle, ShieldCheck } from 'lucide-react';
+import {
+  Stethoscope,
+  Pill,
+  Apple,
+  Calendar,
+  Save,
+  CheckCircle2,
+  Plus,
+  AlertCircle,
+  Sparkles
+} from 'lucide-react';
 import { healthStore } from '../../services/healthStore';
 import { generateAINutritionRecommendation } from '../../services/nutritionEngine';
-import { evaluateDualRisk } from '../../services/clinicalRiskEngine';
-import { StudentProfileData, Vitals, PrescriptionItem } from '../../types';
+import { aiService } from '../../services/aiService';
+import { StudentProfileData, Vitals, PrescriptionItem, Prescription } from '../../types';
 import { authService } from '../../services/authService';
+import { FollowUpDatePicker } from '../common/FollowUpDatePicker';
+import { WhatsAppShareModal } from '../common/WhatsAppShareModal';
+import { VitalsEntrySection } from './consultation/VitalsEntrySection';
+import { PrescriptionItemBuilder } from './consultation/PrescriptionItemBuilder';
 
 interface NewVisitConsultationProps {
   onNavigate: (tab: string) => void;
@@ -15,7 +29,7 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
   const doctorName = currentDoctor.name || 'Campus Physician';
 
   const [allProfiles, setAllProfiles] = useState<StudentProfileData[]>([]);
-  const [studentId, setStudentId] = useState<string>('');
+  const [studentId, setStudentId] = useState<string>(() => healthStore.getActiveDoctorPatientId() || '');
   const [profile, setProfile] = useState<StudentProfileData | undefined>();
   const [previousVitals, setPreviousVitals] = useState<Vitals[]>([]);
 
@@ -35,43 +49,96 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
 
   // Prescription Items
   const [prescriptionItems, setPrescriptionItems] = useState<PrescriptionItem[]>([]);
-
+  
   // Follow-up & Monitoring
   const [followUpRequired, setFollowUpRequired] = useState(false);
   const [followUpDate, setFollowUpDate] = useState(new Date().toISOString().split('T')[0]);
   const [followUpTime, setFollowUpTime] = useState('10:30 AM');
   const [enableMonitoring, setEnableMonitoring] = useState(false);
-  const [monitoringDays, setMonitoringDays] = useState(7);
+  const [monitoringDays] = useState(3);
   const [aiNutritionPlan, setAiNutritionPlan] = useState<any>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [issuedPrescription, setIssuedPrescription] = useState<Prescription | null>(null);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [isAiDrafting, setIsAiDrafting] = useState(false);
+
+  const handleAiDraftSummary = async () => {
+    if (isAiDrafting) return;
+    setIsAiDrafting(true);
+    try {
+      const draft = await aiService.draftVisitSummary({
+        chiefComplaint: chiefComplaint.trim() || 'General campus clinical evaluation',
+        diagnosis: diagnosis.trim() || 'Provisional assessment',
+        vitals: {
+          bloodPressureSys: bpSys,
+          bloodPressureDia: bpDia,
+          heartRateBpm: hrBpm,
+          temperatureF: tempF,
+          spo2Percent: spo2
+        },
+        clinicalNotes: clinicalNotes.trim()
+      });
+      if (draft && draft.text) {
+        setClinicalNotes(draft.text);
+        if (studentId) {
+          healthStore.setActiveClinicalAssessment({
+            studentId,
+            chiefComplaint,
+            diagnosis,
+            clinicalNotes: draft.text
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('AI summary draft failed:', err);
+    } finally {
+      setIsAiDrafting(false);
+    }
+  };
 
   useEffect(() => {
     const load = () => {
       const list = healthStore.getAllStudentProfiles();
       setAllProfiles(list);
 
-      let targetId = studentId;
-      if (list.length > 0 && !targetId) {
-        targetId = list[0].studentId;
-        setStudentId(targetId);
-      }
+      const activeId = healthStore.getActiveDoctorPatientId();
+      setStudentId(activeId);
 
-      if (targetId) {
-        const p = healthStore.getStudentProfile(targetId);
+      if (activeId) {
+        const p = healthStore.getStudentProfile(activeId);
         setProfile(p);
         if (p) {
-          setHeightCm(p.heightCm);
-          setWeightKg(p.weightKg);
+          setHeightCm(p.heightCm || 170);
+          setWeightKg(p.weightKg || 65);
         }
-        const vList = healthStore.getVisitsForStudent(targetId).map(v => v.vitals);
+        const vList = healthStore.getVisitsForStudent(activeId).map(v => v.vitals);
         setPreviousVitals(vList);
+
+        const currentAssessment = healthStore.getActiveClinicalAssessment(activeId);
+        if (currentAssessment.chiefComplaint) {
+          setChiefComplaint(currentAssessment.chiefComplaint);
+        }
+        if (currentAssessment.diagnosis) {
+          setDiagnosis(currentAssessment.diagnosis);
+        }
+        if (currentAssessment.clinicalNotes) {
+          setClinicalNotes(currentAssessment.clinicalNotes);
+        }
+      } else {
+        setProfile(undefined);
+        setPreviousVitals([]);
+        setChiefComplaint('');
+        setDiagnosis('');
+        setClinicalNotes('');
       }
     };
 
     load();
     const unsub = healthStore.subscribe(load);
     return () => unsub();
-  }, [studentId]);
+  }, []);
 
   const handleGenerateAINutrition = () => {
     if (profile) {
@@ -81,7 +148,7 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
         doctorNotes: clinicalNotes
       });
       plan.doctorApproved = true;
-      plan.approvedBy = 'Dr. Sarah Jenkins';
+      plan.approvedBy = doctorName || 'Dr. Nivetha M.B.B.S';
       setAiNutritionPlan(plan);
     }
   };
@@ -89,7 +156,15 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
   const handleAddMedItem = () => {
     setPrescriptionItems([
       ...prescriptionItems,
-      { id: `${Date.now()}`, medicineName: '', dosage: '1 tablet', frequency: 'Twice daily', durationDays: 5, instructions: '' }
+      {
+        id: `${Date.now()}`,
+        medicineName: '',
+        dosage: '1 tablet',
+        frequency: 'Twice daily',
+        durationDays: 3,
+        quantity: 6,
+        instructions: ''
+      }
     ]);
   };
 
@@ -97,9 +172,15 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
     setPrescriptionItems(prescriptionItems.filter(i => i.id !== id));
   };
 
-  const handleSaveConsultation = (e: React.FormEvent) => {
+  const handleSaveConsultation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
+    if (!profile) {
+      alert('Please select a patient from the dropdown first before saving consultation.');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
 
     const hM = heightCm / 100;
     const bmiVal = parseFloat((weightKg / (hM * hM)).toFixed(1));
@@ -117,77 +198,75 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
       recordedBy: doctorName
     };
 
-    // 1. Issue Prescription V1
-    const rx = healthStore.createPrescription({
-      studentId: profile.studentId,
-      doctorName: doctorName,
-      items: prescriptionItems,
-      followUpDate: followUpRequired ? followUpDate : undefined,
-      notes: clinicalNotes
-    });
+    try {
+      // 1. Issue Prescription V1 if medications prescribed (deducts stock in real time on server)
+      let rxId: string | undefined;
+      let rx: Prescription | undefined;
+      if (prescriptionItems && prescriptionItems.length > 0) {
+        rx = await healthStore.createPrescription({
+          studentId: profile.studentId,
+          doctorName: doctorName,
+          diagnosis: diagnosis,
+          items: prescriptionItems,
+          followUpDate: followUpRequired ? followUpDate : undefined,
+          notes: clinicalNotes
+        });
+        rxId = rx.id;
+        setIssuedPrescription(rx);
+      }
 
-    // 2. Save AI Nutrition Plan if generated
-    if (aiNutritionPlan) {
-      healthStore.saveNutritionPlan(aiNutritionPlan);
-    }
+      // 2. Save AI Nutrition Plan if generated
+      let nutritionPlanId: string | undefined;
+      if (aiNutritionPlan) {
+        const savedNutr = await healthStore.saveNutritionPlan(aiNutritionPlan);
+        nutritionPlanId = savedNutr.id;
+      }
 
-    // 3. Add Medical Visit Entry
-    healthStore.addMedicalVisit({
-      studentId: profile.studentId,
-      studentName: profile.name,
-      visitType: 'Consultation',
-      visitDate: new Date().toISOString().split('T')[0],
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      doctorName: doctorName,
-      chiefComplaint,
-      vitals: vitalsObj,
-      clinicalNotes,
-      diagnosis,
-      prescriptionId: rx.id,
-      nutritionPlanId: aiNutritionPlan?.id,
-      monitoringPlanActive: enableMonitoring,
-      status: 'Completed'
-    });
-
-    // 4. Schedule Follow-up Calendar Events
-    if (followUpRequired) {
-      healthStore.addCalendarEvent({
+      // 3. Add Medical Visit Entry
+      await healthStore.addMedicalVisit({
         studentId: profile.studentId,
-        title: `Reconsultation / Follow-up — ${diagnosis}`,
-        date: followUpDate,
-        time: followUpTime,
-        eventType: 'Follow-up',
-        status: 'Upcoming',
-        notes: `Reconsultation with ${doctorName} for ${diagnosis}`
+        studentName: profile.name,
+        visitType: 'Consultation',
+        visitDate: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        doctorName: doctorName,
+        chiefComplaint,
+        vitals: vitalsObj,
+        clinicalNotes,
+        diagnosis,
+        prescriptionId: rxId,
+        nutritionPlanId,
+        monitoringPlanActive: enableMonitoring,
+        status: 'Completed'
       });
-    }
 
-    // 5. Activate Daily Monitoring Plan if checked
-    if (enableMonitoring) {
-      healthStore.activateMonitoringPlan(profile.studentId, diagnosis, monitoringDays, doctorName);
-    }
+      // 4. Schedule Follow-up Calendar Events
+      if (followUpRequired) {
+        await healthStore.addCalendarEvent({
+          studentId: profile.studentId,
+          title: `Reconsultation / Follow-up — ${diagnosis}`,
+          date: followUpDate,
+          time: followUpTime,
+          eventType: 'Follow-up',
+          status: 'Upcoming',
+          notes: `Reconsultation with ${doctorName} for ${diagnosis}`
+        });
+      }
 
-    setSavedSuccess(true);
+      // 5. Activate Daily Monitoring Plan if checked
+      if (enableMonitoring) {
+        await healthStore.activateMonitoringPlan(profile.studentId, diagnosis, monitoringDays, doctorName);
+      }
+
+      setSavedSuccess(true);
+    } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to persist consultation. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const prevVitalsLatest = previousVitals[0] || { bloodPressureSys: 118, bloodPressureDia: 76, spo2Percent: 99, heartRateBpm: 72, weightKg: 63 };
-
-  const currentHeightM = (heightCm || 170) / 100;
-  const currentBmi = parseFloat(((weightKg || 65) / (currentHeightM * currentHeightM)).toFixed(1));
-
-  const dualRisk = evaluateDualRisk({
-    studentId,
-    vitals: {
-      bloodPressureSys: bpSys,
-      bloodPressureDia: bpDia,
-      heartRateBpm: hrBpm,
-      spo2Percent: spo2,
-      temperatureF: tempF,
-      bmi: currentBmi
-    },
-    symptomSeverity: chiefComplaint ? 5 : 2,
-    chronicConditions: profile?.criticalConditions || []
-  });
+  const prevVitalsLatest = previousVitals.length > 0 ? previousVitals[0] : null;
 
   return (
     <div className="space-y-6 theme-medical animate-fade-in pb-12">
@@ -196,7 +275,7 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <Stethoscope className="w-6 h-6 text-teal-600" />
+            <Stethoscope className="w-6 h-6 text-sky-600" />
             <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">New Patient Consultation & EHR Entry</h1>
           </div>
           <p className="text-xs text-slate-500 mt-1">
@@ -205,23 +284,48 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
         </div>
 
         <button
+          type="button"
           onClick={handleSaveConsultation}
-          className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md shadow-teal-600/20 flex items-center gap-2"
+          disabled={!studentId || isSaving}
+          className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 ${
+            studentId && !isSaving
+              ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-md shadow-sky-600/20 cursor-pointer'
+              : 'bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed opacity-70'
+          }`}
         >
           <Save className="w-4 h-4" />
-          <span>Save Clinical Visit & Issue Rx</span>
+          <span>{isSaving ? 'Persisting Clinical Consultation…' : 'Save Clinical Visit & Issue Rx'}</span>
         </button>
       </div>
 
+      {saveError && (
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-800 text-xs font-bold animate-fade-in flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+          <span>{saveError}</span>
+        </div>
+      )}
+
       {savedSuccess && (
-        <div className="p-4 rounded-2xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs flex items-center justify-between animate-fade-in font-bold">
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in font-bold">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-            <span>Consultation saved! Prescription #V1 issued, calendars synced, daily monitoring activated.</span>
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>Consultation saved &amp; Prescription #{issuedPrescription?.id || 'V1'} issued successfully!</span>
           </div>
-          <button onClick={() => onNavigate('medical-dashboard')} className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-xs">
-            Return to Queue
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {issuedPrescription && profile && (
+              <button
+                type="button"
+                onClick={() => setIsWhatsAppModalOpen(true)}
+                className="flex-1 sm:flex-initial px-4 py-2 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              >
+                <span>💬 Share via WhatsApp</span>
+                {profile.phone && <span className="opacity-90 font-normal">(+91 {profile.phone})</span>}
+              </button>
+            )}
+            <button onClick={() => onNavigate('medical-dashboard')} className="px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-xl text-xs font-bold cursor-pointer">
+              Return to Queue
+            </button>
+          </div>
         </div>
       )}
 
@@ -234,281 +338,75 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <select
               value={studentId}
-              onChange={e => setStudentId(e.target.value)}
+              onChange={e => {
+                const val = e.target.value;
+                setStudentId(val);
+                healthStore.setActiveDoctorPatientId(val);
+                if (val) {
+                  const assess = healthStore.getActiveClinicalAssessment(val);
+                  setChiefComplaint(assess.chiefComplaint || '');
+                  setDiagnosis(assess.diagnosis || '');
+                  setClinicalNotes(assess.clinicalNotes || '');
+                } else {
+                  setChiefComplaint('');
+                  setDiagnosis('');
+                  setClinicalNotes('');
+                }
+              }}
               className="p-2.5 rounded-xl bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 text-xs font-bold text-slate-900 dark:text-white"
             >
-              {allProfiles.length === 0 ? (
-                <option value="">No students registered in database</option>
-              ) : (
-                allProfiles.map(p => (
-                  <option key={p.studentId} value={p.studentId}>
-                    {p.studentId} — {p.name} ({p.department})
-                  </option>
-                ))
-              )}
+              <option value="">-- Select Patient for Consultation --</option>
+              {allProfiles.map(p => (
+                <option key={p.studentId} value={p.studentId}>
+                  {p.studentId} — {p.name} ({p.department})
+                </option>
+              ))}
             </select>
 
-            {profile && (
-              <div className="p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900 text-xs flex items-center justify-between">
+            {profile ? (
+              <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-xs flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-teal-900 dark:text-teal-200">{profile.name}</span>
-                  <span className="text-teal-600 block text-[10px]">Blood: {profile.bloodGroup} · Allergies: {profile.criticalAllergies.join(', ')}</span>
+                  <span className="font-bold text-sky-900 dark:text-sky-200">{profile.name}</span>
+                  <span className="text-sky-600 block text-[10px]">Blood: {profile.bloodGroup || 'Not Recorded'} · Allergies: {profile.criticalAllergies && profile.criticalAllergies.length > 0 ? profile.criticalAllergies.join(', ') : 'None'}</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-md bg-teal-600 text-white font-bold text-[10px]">
+                <span className="px-2 py-0.5 rounded-md bg-sky-600 text-white font-bold text-[10px]">
                   ACTIVE PATIENT
                 </span>
+              </div>
+            ) : (
+              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-xs flex items-center gap-2 text-amber-800 dark:text-amber-300">
+                <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
+                <span className="font-medium text-[11px]">No patient selected. Choose a student from dropdown above to begin.</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Clinical Assessment & Chief Complaint */}
-        <div className="card-clinical p-6 space-y-4">
-          <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <Stethoscope className="w-4 h-4 text-teal-600" /> Clinical Assessment
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-1">
-              <label className="block font-bold text-slate-700 dark:text-slate-300">Chief Complaint & Symptoms</label>
-              <textarea
-                rows={3}
-                value={chiefComplaint}
-                onChange={e => setChiefComplaint(e.target.value)}
-                className="w-full p-3 rounded-xl bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 text-xs font-medium text-slate-900 dark:text-white"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block font-bold text-slate-700 dark:text-slate-300">Diagnosis</label>
-              <input
-                type="text"
-                value={diagnosis}
-                onChange={e => setDiagnosis(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 text-xs font-bold text-slate-900 dark:text-white"
-              />
-              <label className="block font-bold text-slate-700 dark:text-slate-300 pt-2">Doctor Clinical Notes</label>
-              <textarea
-                rows={2}
-                value={clinicalNotes}
-                onChange={e => setClinicalNotes(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 text-xs font-medium text-slate-900 dark:text-white"
-              />
-            </div>
-          </div>
-        </div>
 
         {/* Side-by-Side Historical Vitals Comparison */}
-        <div className="card-clinical p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-teal-600" /> Vitals Recording (Side-by-Side History Comparison)
-            </h3>
-            <span className="text-[10px] text-teal-600 font-bold uppercase bg-teal-50 dark:bg-teal-950 px-2 py-0.5 rounded-md">
-              EHR Rule: Previous Vitals Preserved
-            </span>
-          </div>
+        <VitalsEntrySection
+          bpSys={bpSys}
+          setBpSys={setBpSys}
+          bpDia={bpDia}
+          setBpDia={setBpDia}
+          hrBpm={hrBpm}
+          setHrBpm={setHrBpm}
+          spo2={spo2}
+          setSpo2={setSpo2}
+          heightCm={heightCm}
+          setHeightCm={setHeightCm}
+          weightKg={weightKg}
+          setWeightKg={setWeightKg}
+          tempF={tempF}
+          setTempF={setTempF}
+          prevVitalsLatest={prevVitalsLatest}
+        />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-            
-            {/* BP Entry with side-by-side previous */}
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-2">
-              <span className="font-bold text-slate-700 dark:text-slate-300 block">Blood Pressure (mmHg)</span>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="Sys"
-                  value={bpSys || ''}
-                  onKeyDown={e => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
-                  onChange={e => setBpSys(Math.max(0, Number(e.target.value)))}
-                  className="p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-bold text-slate-900 dark:text-white"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="Dia"
-                  value={bpDia || ''}
-                  onKeyDown={e => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
-                  onChange={e => setBpDia(Math.max(0, Number(e.target.value)))}
-                  className="p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-bold text-slate-900 dark:text-white"
-                />
-              </div>
-              <div className="p-2 rounded-lg bg-teal-50/60 dark:bg-teal-950/40 text-[10px] text-teal-800 dark:text-teal-300">
-                <span className="font-bold">Previous:</span> 20 Jul → {prevVitalsLatest.bloodPressureSys}/{prevVitalsLatest.bloodPressureDia} mmHg
-              </div>
-            </div>
 
-            {/* Pulse & SpO2 */}
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-2">
-              <span className="font-bold text-slate-700 dark:text-slate-300 block">Pulse & Oxygen (SpO2)</span>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="BPM"
-                  value={hrBpm || ''}
-                  onKeyDown={e => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
-                  onChange={e => setHrBpm(Math.max(0, Number(e.target.value)))}
-                  className="p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-bold text-slate-900 dark:text-white"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="SpO2%"
-                  value={spo2 || ''}
-                  onKeyDown={e => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
-                  onChange={e => setSpo2(Math.max(0, Number(e.target.value)))}
-                  className="p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-bold text-slate-900 dark:text-white"
-                />
-              </div>
-              <div className="p-2 rounded-lg bg-teal-50/60 dark:bg-teal-950/40 text-[10px] text-teal-800 dark:text-teal-300">
-                <span className="font-bold">Previous:</span> HR: {prevVitalsLatest.heartRateBpm} bpm · SpO2: {prevVitalsLatest.spo2Percent}%
-              </div>
-            </div>
-
-            {/* Height & Weight */}
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-2">
-              <span className="font-bold text-slate-700 dark:text-slate-300 block">Height (cm) & Weight (kg)</span>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  value={heightCm || ''}
-                  onKeyDown={e => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
-                  onChange={e => setHeightCm(Math.max(0, Number(e.target.value)))}
-                  className="p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-bold text-slate-900 dark:text-white"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  value={weightKg || ''}
-                  onKeyDown={e => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
-                  onChange={e => setWeightKg(Math.max(0, Number(e.target.value)))}
-                  className="p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-bold text-slate-900 dark:text-white"
-                />
-              </div>
-              <div className="p-2 rounded-lg bg-teal-50/60 dark:bg-teal-950/40 text-[10px] text-teal-800 dark:text-teal-300">
-                <span className="font-bold">Previous Weight:</span> {prevVitalsLatest.weightKg || 63} kg
-              </div>
-            </div>
-
-            {/* Temperature */}
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-2">
-              <span className="font-bold text-slate-700 dark:text-slate-300 block">Body Temperature (°F)</span>
-              <input
-                type="number"
-                min="0"
-                step="0.1"
-                value={tempF || ''}
-                onKeyDown={e => { if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault(); }}
-                onChange={e => setTempF(Math.max(0, Number(e.target.value)))}
-                className="w-full p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-bold text-slate-900 dark:text-white"
-              />
-              <div className="p-2 rounded-lg bg-teal-50/60 dark:bg-teal-950/40 text-[10px] text-teal-800 dark:text-teal-300">
-                <span className="font-bold">Normal Range:</span> 98.4°F - 99.5°F
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Explainable AI Clinical Risk Stratification Card */}
-        <div className="card-clinical p-6 space-y-4 border-2 border-indigo-100 dark:border-indigo-950/60 bg-gradient-to-br from-white via-indigo-50/20 to-white dark:from-slate-900 dark:via-indigo-950/20 dark:to-slate-900">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                <Brain className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                    Clinical Decision Support: Explainable Risk Stratification
-                  </h3>
-                  <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[10px]">
-                    ML PRIOR v2.1
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Multivariate prior model with feature contribution attribution & NEWS2 heuristic comparison.
-                </p>
-              </div>
-            </div>
-
-            {/* Risk Tier Badge */}
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <div className="text-right">
-                <span className="text-[10px] text-slate-400 font-bold uppercase block">Predicted Tier</span>
-                <span className={`text-xs font-black px-2.5 py-1 rounded-lg inline-block ${
-                  dualRisk.machineLearningModel.riskTier === 'URGENT'
-                    ? 'bg-red-600 text-white shadow-xs'
-                    : dualRisk.machineLearningModel.riskTier === 'HIGH'
-                      ? 'bg-amber-600 text-white shadow-xs'
-                      : dualRisk.machineLearningModel.riskTier === 'MODERATE'
-                        ? 'bg-teal-600 text-white shadow-xs'
-                        : 'bg-emerald-600 text-white shadow-xs'
-                }`}>
-                  {dualRisk.machineLearningModel.riskTier} RISK ({dualRisk.machineLearningModel.confidenceScore}%)
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Model Comparison Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1">
-              <span className="font-bold text-slate-700 dark:text-slate-300 block text-[11px]">
-                Baseline Rule-Based (NEWS2 Score: {dualRisk.ruleBasedBaseline.totalScore})
-              </span>
-              <p className="text-slate-600 dark:text-slate-400 text-[11px]">
-                Threshold Tier: <span className="font-bold text-slate-900 dark:text-white">{dualRisk.ruleBasedBaseline.riskTier}</span>
-                {dualRisk.ruleBasedBaseline.contributingRules.length > 0 && ` (${dualRisk.ruleBasedBaseline.contributingRules.join(', ')})`}
-              </p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/40 space-y-1">
-              <span className="font-bold text-indigo-900 dark:text-indigo-200 block text-[11px]">
-                Machine Learning Stratification
-              </span>
-              <p className="text-indigo-800 dark:text-indigo-300 text-[11px]">
-                Calibrated Posterior: <span className="font-bold">{dualRisk.machineLearningModel.confidenceScore}%</span> · Log-Odds: {dualRisk.machineLearningModel.logOdds}
-              </p>
-            </div>
-          </div>
-
-          {/* Contributing Feature Attributions (XAI) */}
-          {dualRisk.machineLearningModel.contributingFactors.length > 0 && (
-            <div className="space-y-2 pt-1">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                Primary Contributing Factors (Feature Attribution):
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {dualRisk.machineLearningModel.contributingFactors.slice(0, 4).map((f, i) => (
-                  <div key={i} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs space-y-1">
-                    <div className="flex justify-between font-bold">
-                      <span className="text-slate-800 dark:text-slate-200">{f.feature} ({f.clinicalValue})</span>
-                      <span className="font-mono text-indigo-600 dark:text-indigo-400">+{f.percentageOfRisk}%</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                      {f.explanation}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* CDSS Safety Disclaimer */}
-          <div className="p-3 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-900 dark:text-amber-300 flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <span className="leading-snug">{dualRisk.machineLearningModel.clinicalDecisionSupportNotice}</span>
-          </div>
-        </div>
 
         {/* Integrated Prescription Builder */}
         <div className="card-clinical p-6 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <Pill className="w-4 h-4 text-purple-600" /> Integrated Prescription Builder (Version 1)
             </h3>
@@ -516,77 +414,77 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
             <button
               type="button"
               onClick={handleAddMedItem}
-              className="px-3 py-1.5 rounded-lg bg-purple-100 text-purple-800 font-bold text-xs hover:bg-purple-200 flex items-center gap-1"
+              className="px-3 py-1.5 rounded-lg bg-purple-100 text-purple-800 font-bold text-xs hover:bg-purple-200 flex items-center gap-1 cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Item
             </button>
           </div>
 
-          <div className="space-y-3">
-            {prescriptionItems.map((item, idx) => (
-              <div key={item.id} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs items-center">
-                <input
-                  type="text"
-                  placeholder="Medicine Name & Strength"
-                  value={item.medicineName}
-                  onChange={e => {
-                    const newArr = [...prescriptionItems];
-                    newArr[idx].medicineName = e.target.value;
-                    setPrescriptionItems(newArr);
-                  }}
-                  className="sm:col-span-2 p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-bold text-slate-900 dark:text-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Dosage (e.g. 1 capsule)"
-                  value={item.dosage}
-                  onChange={e => {
-                    const newArr = [...prescriptionItems];
-                    newArr[idx].dosage = e.target.value;
-                    setPrescriptionItems(newArr);
-                  }}
-                  className="p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-semibold text-slate-900 dark:text-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Frequency"
-                  value={item.frequency}
-                  onChange={e => {
-                    const newArr = [...prescriptionItems];
-                    newArr[idx].frequency = e.target.value;
-                    setPrescriptionItems(newArr);
-                  }}
-                  className="p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-semibold text-slate-900 dark:text-white"
-                />
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center">
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="Days"
-                      value={item.durationDays}
-                      onKeyDown={e => {
-                        if (e.key === '-' || e.key === '+' || e.key === 'e') e.preventDefault();
-                      }}
-                      onChange={e => {
-                        const parsed = parseInt(e.target.value, 10);
-                        const val = isNaN(parsed) || parsed < 1 ? 1 : Math.abs(parsed);
-                        const newArr = [...prescriptionItems];
-                        newArr[idx].durationDays = val;
-                        setPrescriptionItems(newArr);
-                      }}
-                      className="w-16 p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-bold text-center text-slate-900 dark:text-white"
-                      title="Duration in days (must be at least 1)"
-                    />
-                    <span className="text-[10px] text-slate-400 dark:text-slate-300 ml-1">days</span>
-                  </div>
-                  <button type="button" onClick={() => handleRemoveMedItem(item.id)} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+          {/* Prescription Diagnosis & Doctor Clinical Notes */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="space-y-1.5">
+              <label className="block font-bold text-slate-700 dark:text-slate-300">Diagnosis</label>
+              <input
+                type="text"
+                placeholder="e.g. Acute Bronchitis, Seasonal Rhinitis, Tension Headache..."
+                value={diagnosis}
+                onChange={e => {
+                const val = e.target.value;
+                setDiagnosis(val);
+                if (studentId) {
+                  healthStore.setActiveClinicalAssessment({
+                    studentId,
+                    chiefComplaint,
+                    diagnosis: val,
+                    clinicalNotes
+                  });
+                }
+              }}
+                className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block font-bold text-slate-700 dark:text-slate-300">Doctor Clinical Notes & Instructions</label>
+                <button
+                  type="button"
+                  onClick={handleAiDraftSummary}
+                  disabled={isAiDrafting || (!chiefComplaint && !diagnosis)}
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/40 hover:bg-blue-100 dark:hover:bg-blue-800/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                  title="Generate a structured consultation summary draft using clinical AI"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                  <span>{isAiDrafting ? 'Drafting Summary…' : 'AI Draft Summary'}</span>
+                </button>
               </div>
-            ))}
+              <textarea
+                rows={2}
+                placeholder="Doctor's notes, dosage instructions, patient advice, or clinical remarks..."
+                value={clinicalNotes}
+                onChange={e => {
+                const val = e.target.value;
+                setClinicalNotes(val);
+                if (studentId) {
+                  healthStore.setActiveClinicalAssessment({
+                    studentId,
+                    chiefComplaint,
+                    diagnosis,
+                    clinicalNotes: val
+                  });
+                }
+              }}
+                className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-600 border border-slate-200 dark:border-slate-500 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+              />
+            </div>
           </div>
+
+          
+          <PrescriptionItemBuilder
+            items={prescriptionItems}
+            onChange={setPrescriptionItems}
+            onRemove={handleRemoveMedItem}
+          />
         </div>
 
         {/* AI Nutrition Builder & Doctor Approval */}
@@ -594,7 +492,7 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <Apple className="w-4 h-4 text-emerald-600" /> AI-Assisted Nutrition Recommendation Builder
+                <Apple className="w-4 h-4 text-blue-600" /> AI-Assisted Nutrition Recommendation Builder
               </h3>
               <p className="text-xs text-slate-500">
                 Analyzes BMI trend, bronchitis diagnosis, allergies (Penicillin, Peanuts), and medication interactions.
@@ -604,17 +502,17 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
             <button
               type="button"
               onClick={handleGenerateAINutrition}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs shadow-md"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-sky-600 text-white font-bold text-xs shadow-md"
             >
               Generate AI Recommendation
             </button>
           </div>
 
           {aiNutritionPlan && (
-            <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 space-y-3 text-xs animate-fade-in">
-              <div className="flex items-center justify-between font-bold text-emerald-900 dark:text-emerald-200">
+            <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 space-y-3 text-xs animate-fade-in">
+              <div className="flex items-center justify-between font-bold text-blue-900 dark:text-blue-200">
                 <span>AI Recommendation Goal: {aiNutritionPlan.goal}</span>
-                <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white font-extrabold text-[10px]">
+                <span className="px-2 py-0.5 rounded-md bg-blue-600 text-white font-extrabold text-[10px]">
                   APPROVED BY DOCTOR
                 </span>
               </div>
@@ -631,7 +529,7 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
         {/* Follow-up & Monitoring Sync */}
         <div className="card-clinical p-6 space-y-4">
           <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-teal-600" /> Follow-up Reconsultation & Daily Monitoring
+            <Calendar className="w-4 h-4 text-sky-600" /> Follow-up Reconsultation & Daily Monitoring
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -641,7 +539,7 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
                   type="checkbox"
                   checked={followUpRequired}
                   onChange={e => setFollowUpRequired(e.target.checked)}
-                  className="w-4 h-4 accent-teal-600"
+                  className="w-4 h-4 accent-sky-600"
                 />
                 <span>Schedule Follow-up Reconsultation</span>
               </label>
@@ -649,12 +547,12 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
               {followUpRequired && (
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <div>
-                    <label className="block text-slate-500 font-semibold mb-1">Date</label>
-                    <input
-                      type="date"
+                    <FollowUpDatePicker
                       value={followUpDate}
-                      onChange={e => setFollowUpDate(e.target.value)}
-                      className="w-full p-2 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 font-bold text-slate-900 dark:text-white"
+                      onChange={setFollowUpDate}
+                      label="Follow-up Date"
+                      placeholder="dd-mm-yyyy"
+                      accentColor="sky"
                     />
                   </div>
                   <div>
@@ -676,18 +574,28 @@ export const NewVisitConsultation: React.FC<NewVisitConsultationProps> = ({ onNa
                   type="checkbox"
                   checked={enableMonitoring}
                   onChange={e => setEnableMonitoring(e.target.checked)}
-                  className="w-4 h-4 accent-teal-600"
+                  className="w-4 h-4 accent-sky-600"
                 />
-                <span>Activate Daily Health Monitoring (7-Day Relay)</span>
+                <span>Activate Daily Health Monitoring (3-Day Relay)</span>
               </label>
               <p className="text-[11px] text-slate-500">
-                Activates daily symptom check questionnaire on Alex Rivera's Student Panel and sends daily logs to clinic triage desk.
+                Activates daily symptom check questionnaire on the student's panel and sends daily logs to clinic triage desk.
               </p>
             </div>
           </div>
         </div>
 
       </form>
+
+      {/* WhatsApp Share Modal */}
+      {issuedPrescription && profile && (
+        <WhatsAppShareModal
+          isOpen={isWhatsAppModalOpen}
+          onClose={() => setIsWhatsAppModalOpen(false)}
+          prescription={issuedPrescription}
+          profile={profile}
+        />
+      )}
 
     </div>
   );

@@ -1,17 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  BarChart3,
   Brain,
   ShieldCheck,
   TrendingUp,
-  Activity,
-  Layers,
-  FileSpreadsheet,
-  CheckCircle2,
-  AlertCircle,
-  Percent,
   Sliders,
-  Sparkles,
   RefreshCw
 } from 'lucide-react';
 import { researchService } from '../../services/researchService';
@@ -24,24 +16,27 @@ export const ResearcherDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
+    let mounted = true;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [pop, ev] = await Promise.all([
+          researchService.getPopulationMetrics(),
+          researchService.getModelEvaluation()
+        ]);
+        if (mounted) {
+          setPopMetrics(pop);
+          setEvalMetrics(ev);
+        }
+      } catch (err) {
+        console.error('Error loading research data:', err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    fetchData();
+    return () => { mounted = false; };
   }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [pop, ev] = await Promise.all([
-        researchService.getPopulationMetrics(),
-        researchService.getModelEvaluation()
-      ]);
-      setPopMetrics(pop);
-      setEvalMetrics(ev);
-    } catch (err) {
-      console.error('Error loading research data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const classes = ['LOW', 'MODERATE', 'HIGH', 'URGENT'];
 
@@ -113,14 +108,14 @@ export const ResearcherDashboard: React.FC = () => {
                   <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">
                     {(evalMetrics.overallPerformance.machineLearningAccuracy * 100).toFixed(1)}%
                   </div>
-                  <span className="text-[11px] text-emerald-600 font-bold mt-0.5 block">
+                  <span className="text-[11px] text-blue-600 font-bold mt-0.5 block">
                     +17.3% over NEWS2 baseline
                   </span>
                 </div>
 
                 <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
                   <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold block">Macro AUROC</span>
-                  <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+                  <div className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
                     {evalMetrics.overallPerformance.macroAveragesML.macroAUROC}
                   </div>
                   <span className="text-[11px] text-slate-400 font-medium mt-0.5 block">
@@ -130,7 +125,7 @@ export const ResearcherDashboard: React.FC = () => {
 
                 <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
                   <span className="text-slate-500 dark:text-slate-400 text-xs font-semibold block">Macro F1-Score</span>
-                  <div className="text-2xl font-black text-teal-600 dark:text-teal-400 mt-1">
+                  <div className="text-2xl font-black text-sky-600 dark:text-sky-400 mt-1">
                     {evalMetrics.overallPerformance.macroAveragesML.f1Score}
                   </div>
                   <span className="text-[11px] text-slate-400 font-medium mt-0.5 block">
@@ -264,7 +259,7 @@ export const ResearcherDashboard: React.FC = () => {
               <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
                 <div>
                   <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-emerald-600" />
+                    <TrendingUp className="w-4 h-4 text-blue-600" />
                     Global Feature Importance Attribution (Linear SHAP Equivalent)
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -308,7 +303,7 @@ export const ResearcherDashboard: React.FC = () => {
                         {exp.title}
                       </h3>
                     </div>
-                    <span className="px-3 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-xs self-start sm:self-auto">
+                    <span className="px-3 py-1 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold text-xs self-start sm:self-auto">
                       Statistically Significant
                     </span>
                   </div>
@@ -339,9 +334,9 @@ export const ResearcherDashboard: React.FC = () => {
                           {exp.metricsComparison.ruleBasedNEWS2.auroc}
                         </span>
                       </div>
-                      <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                        <span className="text-emerald-600 dark:text-emerald-400 block font-semibold">ML Model AUROC</span>
-                        <span className="font-bold text-base text-emerald-700 dark:text-emerald-300">
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800">
+                        <span className="text-blue-600 dark:text-blue-400 block font-semibold">ML Model AUROC</span>
+                        <span className="font-bold text-base text-blue-700 dark:text-blue-300">
                           {exp.metricsComparison.machineLearningModel.auroc}
                         </span>
                       </div>
@@ -362,15 +357,15 @@ export const ResearcherDashboard: React.FC = () => {
                           {exp.metrics.privacyPreservingEmergencyFields} fields
                         </span>
                       </div>
-                      <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                        <span className="text-emerald-600 dark:text-emerald-400 block font-semibold">Privacy Preserved</span>
-                        <span className="font-bold text-base text-emerald-700 dark:text-emerald-300">
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800">
+                        <span className="text-blue-600 dark:text-blue-400 block font-semibold">Privacy Preserved</span>
+                        <span className="font-bold text-base text-blue-700 dark:text-blue-300">
                           {exp.metrics.privacyPreservationRatioPercent}%
                         </span>
                       </div>
-                      <div className="p-3 bg-teal-50 dark:bg-teal-950/40 rounded-xl border border-teal-200 dark:border-teal-800">
-                        <span className="text-teal-600 dark:text-teal-400 block font-semibold">Latency Reduction</span>
-                        <span className="font-bold text-base text-teal-700 dark:text-teal-300">
+                      <div className="p-3 bg-sky-50 dark:bg-sky-950/40 rounded-xl border border-sky-200 dark:border-sky-800">
+                        <span className="text-sky-600 dark:text-sky-400 block font-semibold">Latency Reduction</span>
+                        <span className="font-bold text-base text-sky-700 dark:text-sky-300">
                           {exp.metrics.latencyReductionPercent}%
                         </span>
                       </div>
@@ -385,9 +380,9 @@ export const ResearcherDashboard: React.FC = () => {
                           {exp.metrics.meanDaysToComplicationDetectionPeriodic} days
                         </span>
                       </div>
-                      <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                        <span className="text-emerald-600 dark:text-emerald-400 block font-semibold">Daily Monitoring</span>
-                        <span className="font-bold text-base text-emerald-700 dark:text-emerald-300">
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800">
+                        <span className="text-blue-600 dark:text-blue-400 block font-semibold">Daily Monitoring</span>
+                        <span className="font-bold text-base text-blue-700 dark:text-blue-300">
                           {exp.metrics.meanDaysToComplicationDetectionContinuous} days
                         </span>
                       </div>
@@ -397,16 +392,16 @@ export const ResearcherDashboard: React.FC = () => {
                           {exp.metrics.earlyInterventionAccelerationRatio}
                         </span>
                       </div>
-                      <div className="p-3 bg-teal-50 dark:bg-teal-950/40 rounded-xl border border-teal-200 dark:border-teal-800">
-                        <span className="text-teal-600 dark:text-teal-400 block font-semibold">Adherence Rate</span>
-                        <span className="font-bold text-base text-teal-700 dark:text-teal-300">
+                      <div className="p-3 bg-sky-50 dark:bg-sky-950/40 rounded-xl border border-sky-200 dark:border-sky-800">
+                        <span className="text-sky-600 dark:text-sky-400 block font-semibold">Adherence Rate</span>
+                        <span className="font-bold text-base text-sky-700 dark:text-sky-300">
                           {exp.metrics.studentComplianceRatePercent}%
                         </span>
                       </div>
                     </div>
                   )}
 
-                  <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-xs text-emerald-800 dark:text-emerald-200">
+                  <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 text-xs text-blue-800 dark:text-blue-200">
                     <span className="font-bold">Empirical Finding: </span>
                     {exp.conclusion}
                   </div>

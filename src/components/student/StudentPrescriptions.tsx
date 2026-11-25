@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Pill, History, Calendar, CheckCircle2, Clock, Printer, ShieldAlert, ArrowRight } from 'lucide-react';
+import { Pill, History, Printer, ShieldAlert, Share2 } from 'lucide-react';
 import { healthStore } from '../../services/healthStore';
 import { Prescription } from '../../types';
 import { VersionDiffViewer } from '../common/VersionDiffViewer';
+import { WhatsAppShareModal } from '../common/WhatsAppShareModal';
+import { authService } from '../../services/authService';
 
 interface StudentPrescriptionsProps {
   onOpenDiffViewer?: () => void;
 }
-
-import { authService } from '../../services/authService';
 
 export const StudentPrescriptions: React.FC<StudentPrescriptionsProps> = () => {
   const currentUser = authService.getCurrentUser();
@@ -16,6 +16,7 @@ export const StudentPrescriptions: React.FC<StudentPrescriptionsProps> = () => {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [selectedRx, setSelectedRx] = useState<Prescription | null>(null);
   const [showDiff, setShowDiff] = useState(false);
+  const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
 
   useEffect(() => {
     const load = () => {
@@ -44,6 +45,7 @@ export const StudentPrescriptions: React.FC<StudentPrescriptionsProps> = () => {
   const activeRx = selectedRx || prescriptions[0];
   const currentVer = activeRx.currentVersion;
   const hasHistory = activeRx.history.length > 1;
+  const profile = studentId ? healthStore.getStudentProfile(studentId) : undefined;
 
   const handlePrint = () => {
     window.print();
@@ -67,7 +69,16 @@ export const StudentPrescriptions: React.FC<StudentPrescriptionsProps> = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setIsWhatsAppOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+            title="Share Prescription via WhatsApp"
+          >
+            <Share2 className="w-4 h-4" />
+            <span>Share via WhatsApp</span>
+          </button>
+
           {hasHistory && (
             <button
               onClick={() => setShowDiff(true)}
@@ -103,7 +114,7 @@ export const StudentPrescriptions: React.FC<StudentPrescriptionsProps> = () => {
 
           <div className="text-right text-xs text-slate-500 space-y-0.5">
             <div>Date Issued: <strong>{currentVer.createdAt}</strong></div>
-            <div>Follow-up Date: <strong className="text-emerald-600">{currentVer.followUpDate || 'None'}</strong></div>
+            <div>Follow-up Date: <strong className="text-blue-600">{currentVer.followUpDate || 'None'}</strong></div>
           </div>
         </div>
 
@@ -168,6 +179,16 @@ export const StudentPrescriptions: React.FC<StudentPrescriptionsProps> = () => {
           prescription={activeRx}
           v1={activeRx.history[activeRx.history.length - 1]}
           v2={currentVer}
+        />
+      )}
+
+      {/* WhatsApp Share Modal */}
+      {activeRx && (
+        <WhatsAppShareModal
+          isOpen={isWhatsAppOpen}
+          onClose={() => setIsWhatsAppOpen(false)}
+          prescription={activeRx}
+          profile={profile}
         />
       )}
 

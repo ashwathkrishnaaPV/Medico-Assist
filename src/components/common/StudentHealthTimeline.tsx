@@ -6,10 +6,7 @@ import {
   ShieldAlert,
   Apple,
   Calendar,
-  Clock,
-  User,
-  Filter,
-  ArrowUpRight
+  Clock
 } from 'lucide-react';
 import { HealthTimelineEvent } from '../../types';
 
@@ -38,12 +35,12 @@ export const StudentHealthTimeline: React.FC<StudentHealthTimelineProps> = ({
   const getEventIcon = (type: HealthTimelineEvent['type']) => {
     switch (type) {
       case 'VISIT':
-        return <Stethoscope className="w-4 h-4 text-teal-600 dark:text-teal-400" />;
+        return <Stethoscope className="w-4 h-4 text-sky-600 dark:text-sky-400" />;
       case 'PRESCRIPTION_V1':
       case 'PRESCRIPTION_MODIFIED':
         return <Pill className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />;
       case 'DAILY_MONITORING':
-        return <CheckSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />;
+        return <CheckSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
       case 'EMERGENCY_ACCESS':
         return <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400" />;
       case 'NUTRITION':
@@ -58,8 +55,8 @@ export const StudentHealthTimeline: React.FC<StudentHealthTimelineProps> = ({
     if (severity === 'URGENT') return 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-300';
     if (severity === 'HIGH') return 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300';
     if (type.startsWith('PRESCRIPTION')) return 'bg-indigo-50 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-200';
-    if (type === 'VISIT') return 'bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border-teal-200';
-    return 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200';
+    if (type === 'VISIT') return 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border-sky-200';
+    return 'bg-blue-50 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200';
   };
 
   return (
@@ -68,7 +65,7 @@ export const StudentHealthTimeline: React.FC<StudentHealthTimelineProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
         <div>
           <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             Longitudinal Health Timeline
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -110,8 +107,8 @@ export const StudentHealthTimeline: React.FC<StudentHealthTimelineProps> = ({
           {filteredEvents.map(event => (
             <div key={event.id} className="relative group">
               {/* Dot Icon */}
-              <div className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 flex items-center justify-center group-hover:border-emerald-500 transition-colors">
-                <div className="w-2 h-2 rounded-full bg-slate-400 group-hover:bg-emerald-500" />
+              <div className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 flex items-center justify-center group-hover:border-blue-500 transition-colors">
+                <div className="w-2 h-2 rounded-full bg-slate-400 group-hover:bg-blue-500" />
               </div>
 
               {/* Event Card */}

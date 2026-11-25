@@ -1,46 +1,99 @@
-const jwt = require('jsonwebtoken');
-
-// Ensure a valid JWT secret exists
-const getJwtSecret = () => {
-  return process.env.JWT_SECRET || 'dev_ephemeral_jwt_secret_change_in_production_2026';
-};
+const { getModel } = require('../models/provider');
+const env = require('../config/env');
+const { verifyAuthToken } = require('../services/tokenService');
+const { logAuditEvent } = require('../services/auditService');
+const { findByIdentifier } = require('../utils/dbHelpers');
 
 /**
- * Verifies JWT token and attaches user context to req.user
+ * Verifies JWT from HttpOnly session cookie or explicit Authorization Bearer header,
+ * validates tokenVersion & active status against stored user record, and attaches req.user.
  */
-const authenticate = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      success: false,
-      error: { code: 'UNAUTHENTICATED', message: 'No authentication token provided.' }
-    });
-  }
-
-  const token = authHeader.split(' ')[1];
+const authenticate = async (req, res, next) => {
   try {
-    const decoded = jwt.verify(token, getJwtSecret());
-    req.user = decoded;
+    const cookieToken = req.cookies && req.cookies[env.authCookieName];
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader && authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7).trim()
+      : null;
+
+    const token = cookieToken || bearerToken;
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHENTICATED', message: 'Authentication required. Please sign in.' }
+      });
+    }
+
+    req.authSource = cookieToken ? 'cookie' : 'bearer';
+    const decoded = verifyAuthToken(token);
+    req.tokenDecoded = decoded;
+
+    // Verify account remains active and tokenVersion has not been invalidated
+    const User = getModel('User');
+    if (User && (typeof User.findById === 'function' || typeof User.findOne === 'function')) {
+      const dbUser = await findByIdentifier(User, decoded.id);
+      if (!dbUser || dbUser.active === false) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'ACCOUNT_INACTIVE', message: 'User account no longer active.' }
+        });
+      }
+      if (Number(dbUser.tokenVersion || 0) !== Number(decoded.tv || 0)) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'SESSION_INVALIDATED', message: 'Session has expired or been logged out. Please sign in again.' }
+        });
+      }
+      req.user = {
+        id: String(dbUser._id || dbUser.id),
+        role: dbUser.role,
+        email: dbUser.email,
+        studentId: dbUser.studentId,
+        staffId: dbUser.staffId,
+        name: dbUser.name,
+        tokenVersion: Number(dbUser.tokenVersion || 0)
+      };
+    } else {
+      req.user = decoded;
+    }
+
     next();
   } catch (err) {
+    const code = err.code === 'TOKEN_REVOKED' ? 'TOKEN_REVOKED' : 'INVALID_TOKEN';
     return res.status(401).json({
       success: false,
-      error: { code: 'INVALID_TOKEN', message: 'Token is invalid or expired. Please sign in again.' }
+      error: { code, message: 'Token is invalid, expired, or revoked. Please sign in again.' }
     });
   }
 };
 
 /**
- * Role-based access control guard
+ * Role-based access control guard.
  */
 const authorizeRoles = (...allowedRoles) => {
   return (req, res, next) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHENTICATED', message: 'Authentication required.' }
+      });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      logAuditEvent(req, {
+        action: 'RBAC_ACCESS_DENIED',
+        resourceType: 'ROUTE',
+        resource: req.originalUrl || req.path,
+        details: `Role '${req.user.role}' denied access (allowed: ${allowedRoles.join(', ')})`,
+        sensitivity: 'HIGH',
+        outcome: 'DENIED'
+      });
+
       return res.status(403).json({
         success: false,
         error: {
           code: 'FORBIDDEN',
-          message: `Access forbidden. Role '${req.user ? req.user.role : 'ANONYMOUS'}' lacks required privileges for this resource.`
+          message: `Access forbidden. Role '${req.user.role}' lacks required privileges for this resource.`
         }
       });
     }
@@ -49,27 +102,36 @@ const authorizeRoles = (...allowedRoles) => {
 };
 
 /**
- * Contextual Ownership Verification (IDOR Prevention)
- * - If STUDENT: can ONLY access their own studentId records
- * - If MEDICAL_STAFF or ADMIN: allowed for clinical / operational care
- * - If RESEARCHER: blocked from identifiable student records
- * - If EMERGENCY_RESPONDER: blocked from direct clinical querying
+ * Contextual Ownership Verification (IDOR Prevention).
+ * - STUDENT: can ONLY access/mutate records matching their own verified server-side studentId
+ * - MEDICAL_STAFF: allowed by default for clinical care (unless excluded by allowedElevatedRoles)
+ * - ADMIN: NOT granted automatic clinical access by default; must be explicitly opted in only for operational routes
+ * - RESEARCHER & EMERGENCY_RESPONDER: blocked from direct identifiable clinical records
  */
-const verifyOwnershipOrRole = ({ paramName = 'studentId', allowedElevatedRoles = ['MEDICAL_STAFF', 'ADMIN'] } = {}) => {
+const verifyOwnershipOrRole = ({ paramName = 'studentId', allowedElevatedRoles = ['MEDICAL_STAFF'] } = {}) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'Authentication required.' } });
+      return res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHENTICATED', message: 'Authentication required.' }
+      });
     }
 
     const userRole = req.user.role;
 
-    // Elevated clinician or admin access
     if (allowedElevatedRoles.includes(userRole)) {
       return next();
     }
 
-    // Researchers must never access raw identifiable records
     if (userRole === 'RESEARCHER') {
+      logAuditEvent(req, {
+        action: 'RESEARCHER_PII_BLOCKED',
+        resourceType: 'CLINICAL_RECORD',
+        resource: req.originalUrl || req.path,
+        details: 'Researcher blocked from accessing identifiable clinical records.',
+        sensitivity: 'HIGH',
+        outcome: 'DENIED'
+      });
       return res.status(403).json({
         success: false,
         error: {
@@ -79,7 +141,6 @@ const verifyOwnershipOrRole = ({ paramName = 'studentId', allowedElevatedRoles =
       });
     }
 
-    // Emergency Responders must use the dedicated token verification endpoint
     if (userRole === 'EMERGENCY_RESPONDER') {
       return res.status(403).json({
         success: false,
@@ -90,14 +151,41 @@ const verifyOwnershipOrRole = ({ paramName = 'studentId', allowedElevatedRoles =
       });
     }
 
-    // Student Ownership Check
-    if (userRole === 'STUDENT') {
-      const requestedStudentId = req.params[paramName] || req.query[paramName] || (req.body && req.body[paramName]);
-      const ownStudentId = req.user.studentId || req.user.id;
+    if (userRole === 'ADMIN') {
+      logAuditEvent(req, {
+        action: 'ADMIN_CLINICAL_ACCESS_DENIED',
+        resourceType: 'CLINICAL_RECORD',
+        resource: req.originalUrl || req.path,
+        details: 'Administrator blocked from unrestricted clinical access per minimum-privilege policy.',
+        sensitivity: 'HIGH',
+        outcome: 'DENIED'
+      });
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'CLINICAL_ACCESS_RESTRICTED',
+          message: 'Administrators do not have unrestricted access to individual patient clinical records.'
+        }
+      });
+    }
 
-      // If specific student ID requested, enforce strict equality
-      if (requestedStudentId && requestedStudentId !== ownStudentId) {
-        console.warn(`[SECURITY AUDIT - IDOR ATTEMPT] Student '${req.user.email}' (ID: ${ownStudentId}) attempted unauthorized access to student records '${requestedStudentId}'`);
+    if (userRole === 'STUDENT') {
+      const ownStudentId = req.user.studentId || req.user.id;
+      const requestedStudentId =
+        (req.params && req.params[paramName]) ||
+        (req.query && req.query[paramName]) ||
+        (req.body && req.body[paramName]);
+
+      if (requestedStudentId && String(requestedStudentId).trim().toLowerCase() !== String(ownStudentId).trim().toLowerCase()) {
+        logAuditEvent(req, {
+          action: 'IDOR_ATTEMPT_BLOCKED',
+          resourceType: 'STUDENT_RECORD',
+          resource: String(requestedStudentId),
+          details: `Student '${req.user.email}' (${ownStudentId}) attempted unauthorized access to '${requestedStudentId}'`,
+          sensitivity: 'CRITICAL',
+          outcome: 'DENIED'
+        });
+
         return res.status(403).json({
           success: false,
           error: {
@@ -107,10 +195,7 @@ const verifyOwnershipOrRole = ({ paramName = 'studentId', allowedElevatedRoles =
         });
       }
 
-      // Automatically scope query or body to student's own ID if not specified
-      if (!req.query.studentId && !req.params[paramName]) {
-        req.query.studentId = ownStudentId;
-      }
+      req.scopedStudentId = ownStudentId;
       return next();
     }
 
@@ -124,6 +209,5 @@ const verifyOwnershipOrRole = ({ paramName = 'studentId', allowedElevatedRoles =
 module.exports = {
   authenticate,
   authorizeRoles,
-  verifyOwnershipOrRole,
-  getJwtSecret
+  verifyOwnershipOrRole
 };

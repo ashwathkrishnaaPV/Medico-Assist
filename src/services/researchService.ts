@@ -9,7 +9,7 @@ export const researchService = {
         return res.data.data;
       }
       return res.data;
-    } catch (err: any) {
+    } catch {
       // Offline fallback defaults with documented distributions
       return {
         privacyProtocol: 'De-identified Aggregate Statistical Cohort (k-anonymity >= 5). No individual student PII exposed.',
@@ -61,7 +61,7 @@ export const researchService = {
         return res.data.data;
       }
       return res.data;
-    } catch (err: any) {
+    } catch {
       // Offline fallback metrics computed from the same mathematical model
       return {
         evaluationTimestamp: new Date().toISOString(),

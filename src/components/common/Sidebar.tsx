@@ -12,16 +12,12 @@ import {
   Users,
   Stethoscope,
   Shield,
-  FileText,
   FileCheck,
-  Bell,
   Settings,
-  Flame,
   KeyRound,
   BarChart3,
   Brain,
-  ShieldAlert,
-  QrCode
+  ShieldAlert
 } from 'lucide-react';
 import { Role } from '../../types';
 import { healthStore } from '../../services/healthStore';
@@ -79,8 +75,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, currentTab, onNavigate }
       // ADMIN
       return [
         { id: 'admin-dashboard', label: 'Executive Dashboard', icon: BarChart3 },
+        { id: 'admin-inventory', label: 'Pharmacy & Stock Inventory', icon: Pill, badge: 'Stock' },
         { id: 'admin-students', label: 'Student Management', icon: Users },
-        { id: 'admin-staff', label: 'Medical Staff & Doctors', icon: Stethoscope },
+        { id: 'admin-staff', label: 'Doctor Profile (Dr. Nivetha)', icon: Stethoscope },
         { id: 'admin-roles', label: 'RBAC & Access Control', icon: KeyRound },
         { id: 'admin-research', label: 'Research & Model Analytics', icon: Brain, badge: 'Research' },
         { id: 'admin-emergency-logs', label: 'Emergency Access Audit', icon: AlertTriangle, badge: 'Restricted' },
@@ -103,10 +100,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, currentTab, onNavigate }
   };
 
   return (
-    <aside className="w-64 shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 p-4 flex flex-col justify-between transition-colors">
+    <aside className="w-64 shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto bg-white dark:bg-[#0A1931] border-r border-[#B3CFE5]/40 dark:border-[#1A3D63] text-[#0A1931] dark:text-[#F6FAFD] p-4 flex flex-col justify-between transition-colors">
       
       <div className="space-y-1">
-        <div className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <div className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[#4A7FA7] dark:text-[#B3CFE5]/70">
           {getWorkspaceTitle()}
         </div>
 
@@ -117,22 +114,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, currentTab, onNavigate }
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 isActive
-                  ? role === 'STUDENT'
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                    : role === 'MEDICAL_STAFF'
-                      ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
-                      : role === 'RESEARCHER'
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                        : role === 'EMERGENCY_RESPONDER'
-                          ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
-                          : 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-md'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-[#1A3D63] text-white shadow-md shadow-[#1A3D63]/25'
+                  : 'text-[#4A7FA7] dark:text-[#B3CFE5]/80 hover:bg-[#B3CFE5]/20 hover:text-[#0A1931] dark:hover:text-white'
               }`}
             >
               <div className="flex items-center gap-3">
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-[#4A7FA7] dark:text-[#B3CFE5]/60'}`} />
                 <span>{item.label}</span>
               </div>
               {item.badge && (
@@ -140,10 +129,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, currentTab, onNavigate }
                   isActive
                     ? 'bg-white/20 text-white'
                     : item.badge === 'Done'
-                      ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                      ? 'bg-[#B3CFE5]/30 text-[#1A3D63] border border-[#B3CFE5]'
                       : item.badge === 'Active' || item.badge === 'Alerts'
                         ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
-                        : 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                        : 'bg-[#B3CFE5]/30 text-[#1A3D63] border border-[#B3CFE5]'
                 }`}>
                   {item.badge}
                 </span>
@@ -154,12 +143,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, currentTab, onNavigate }
       </div>
 
       {/* Footer Info Box */}
-      <div className="p-3 rounded-xl text-xs border bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 transition-colors mt-6">
+      <div className="p-3 rounded-xl text-xs border bg-[#F6FAFD] dark:bg-[#0A1931]/60 border-[#B3CFE5]/40 dark:border-[#1A3D63] transition-colors mt-6">
         <div className="flex items-center gap-2 font-semibold mb-1">
-          <Shield className="w-3.5 h-3.5 text-emerald-500" />
-          <span className="text-slate-800 dark:text-slate-200 font-bold">MedicoAssist v2.5</span>
+          <Shield className="w-3.5 h-3.5 text-[#1A3D63]" />
+          <span className="text-[#0A1931] dark:text-[#F6FAFD] font-bold">MedicoAssist v2.5</span>
         </div>
-        <p className="text-slate-500 dark:text-slate-400 text-[10px] leading-tight">
+        <p className="text-[#4A7FA7] dark:text-[#B3CFE5]/70 text-[10px] leading-tight">
           Research-Grade Clinical Decision Support · HIPAA Minimum Necessary Standard
         </p>
       </div>

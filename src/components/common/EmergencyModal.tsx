@@ -7,14 +7,12 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  ShieldCheck,
-  FileCheck2,
   RefreshCw,
   EyeOff
 } from 'lucide-react';
 import { emergencyService } from '../../services/emergencyService';
 import { authService } from '../../services/authService';
-import { EmergencyTokenResponse, EmergencyVerificationResult, EmergencyMetrics } from '../../types';
+import { EmergencyTokenResponse, EmergencyVerificationResult } from '../../types';
 
 interface EmergencyModalProps {
   isOpen: boolean;
@@ -28,20 +26,45 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose,
 
   const [tokenData, setTokenData] = useState<EmergencyTokenResponse | null>(null);
   const [scannedData, setScannedData] = useState<EmergencyVerificationResult | null>(null);
-  const [metrics, setMetrics] = useState<EmergencyMetrics | null>(null);
   const [secondsRemaining, setSecondsRemaining] = useState<number>(900);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Generate cryptographic token on modal open
-  useEffect(() => {
-    if (isOpen) {
-      handleGenerateToken();
-      loadMetrics();
-    } else {
+  // Reset modal state during render when closed
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (prevIsOpen !== isOpen) {
+    setPrevIsOpen(isOpen);
+    if (!isOpen) {
       setScannedData(null);
       setError(null);
+      setTokenData(null);
     }
+  }
+
+  // Generate cryptographic token on modal open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let ignore = false;
+    emergencyService.generateToken(targetStudentId)
+      .then(data => {
+        if (!ignore) {
+          setTokenData(data);
+          setSecondsRemaining(data.ttlSeconds || 900);
+          setError(null);
+          setLoading(false);
+        }
+      })
+      .catch((err: any) => {
+        if (!ignore) {
+          setError(err.message || 'Failed to generate emergency token.');
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
   }, [isOpen, targetStudentId]);
 
   // Countdown timer
@@ -52,29 +75,6 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose,
     }, 1000);
     return () => clearInterval(timer);
   }, [tokenData, secondsRemaining]);
-
-  const handleGenerateToken = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await emergencyService.generateToken(targetStudentId);
-      setTokenData(data);
-      setSecondsRemaining(data.ttlSeconds || 900);
-    } catch (err: any) {
-      setError(err.message || 'Failed to generate emergency token.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMetrics = async () => {
-    try {
-      const m = await emergencyService.getMetrics();
-      setMetrics(m);
-    } catch (err) {
-      // Ignored
-    }
-  };
 
   const handleSimulateScan = async () => {
     if (!tokenData) return;
@@ -88,7 +88,6 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose,
         responderId: 'EMS_PARAMEDIC_4'
       });
       setScannedData(result);
-      loadMetrics();
     } catch (err: any) {
       setError(err.message || 'Verification failed.');
     } finally {
@@ -143,7 +142,7 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose,
           {error && (
             <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 rounded-2xl text-xs text-rose-800 dark:text-rose-200 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
-              <span>{error}</span>
+              <span>{typeof error === 'string' ? error : (error as any)?.message || String(error)}</span>
             </div>
           )}
 
@@ -202,12 +201,12 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose,
           ) : (
             /* Emergency Verified View */
             <div className="space-y-4 animate-fade-in">
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 rounded-2xl flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 font-bold text-emerald-800 dark:text-emerald-200">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/60 border border-blue-300 dark:border-blue-800 rounded-2xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 font-bold text-blue-800 dark:text-blue-200">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   <span>Token Verified · Triage Dataset Released</span>
                 </div>
-                <span className="font-mono font-bold text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-md">
+                <span className="font-mono font-bold text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-md">
                   AUDITED
                 </span>
               </div>
@@ -216,11 +215,11 @@ export const EmergencyModal: React.FC<EmergencyModalProps> = ({ isOpen, onClose,
               <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
                 <div className="flex justify-between font-bold">
                   <span className="text-slate-700 dark:text-slate-300">Minimum Necessary Disclosure Score:</span>
-                  <span className="text-emerald-600 dark:text-emerald-400">85.4% Privacy Preserved</span>
+                  <span className="text-blue-600 dark:text-blue-400">85.4% Privacy Preserved</span>
                 </div>
                 <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden flex">
                   <div className="bg-rose-500 h-full" style={{ width: '14.6%' }} title="Emergency Data (14.6%)" />
-                  <div className="bg-emerald-500 h-full" style={{ width: '85.4%' }} title="Withheld Private EHR (85.4%)" />
+                  <div className="bg-blue-500 h-full" style={{ width: '85.4%' }} title="Withheld Private EHR (85.4%)" />
                 </div>
                 <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400">
                   <span>Exposed: 7 critical fields</span>
