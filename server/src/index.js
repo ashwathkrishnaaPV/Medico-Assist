@@ -14,8 +14,9 @@ const { csrfProtection } = require('./middleware/csrf');
 
 function createApp() {
   const app = express();
+  const allowedOrigins = Array.isArray(env?.allowedOrigins) ? env.allowedOrigins : [];
 
-  if (env.isProduction) {
+  if (env?.isProduction) {
     app.set('trust proxy', 1);
   }
 
@@ -37,7 +38,7 @@ function createApp() {
           styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'data:', 'blob:'],
-          connectSrc: ["'self'", ...env.allowedOrigins]
+          connectSrc: ["'self'", ...allowedOrigins]
         }
       },
       crossOriginEmbedderPolicy: false
@@ -48,7 +49,7 @@ function createApp() {
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || env.allowedOrigins.includes(origin)) {
+        if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
           const corsErr = new Error(`Origin '${origin}' is not allowed by CORS policy.`);
