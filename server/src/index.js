@@ -16,7 +16,7 @@ function createApp() {
   const app = express();
   const allowedOrigins = Array.isArray(env?.allowedOrigins) ? env.allowedOrigins : [];
 
-  if (env?.isProduction) {
+  if (env?.isProduction || process.env.VERCEL || process.env.RENDER) {
     app.set('trust proxy', 1);
   }
 
