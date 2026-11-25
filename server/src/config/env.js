@@ -34,7 +34,7 @@ const isProduction = nodeEnv === 'production';
 
 const rawOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
   .split(',')
-  .map((o) => o.trim())
+  .map((o) => o.trim().replace(/\/+$/, ''))
   .filter(Boolean);
 
 if (process.env.VERCEL_URL) {
@@ -42,6 +42,9 @@ if (process.env.VERCEL_URL) {
 }
 if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
   rawOrigins.push(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+}
+if (!rawOrigins.includes('https://medico-assist.vercel.app')) {
+  rawOrigins.push('https://medico-assist.vercel.app');
 }
 
 module.exports = {
