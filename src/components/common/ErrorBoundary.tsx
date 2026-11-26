@@ -24,6 +24,17 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('[REACT ERROR BOUNDARY CRASH]:', error, errorInfo);
+    const msg = error?.message || '';
+    const isChunkLoadError =
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Importing a module script failed') ||
+      error?.name === 'ChunkLoadError';
+
+    if (isChunkLoadError && !sessionStorage.getItem('medico_chunk_reload')) {
+      sessionStorage.setItem('medico_chunk_reload', '1');
+      window.location.reload();
+      return;
+    }
     this.setState({ errorInfo });
   }
 
