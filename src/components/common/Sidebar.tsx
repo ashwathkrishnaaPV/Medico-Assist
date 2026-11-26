@@ -11,9 +11,7 @@ import {
   Users,
   Stethoscope,
   Shield,
-  FileCheck,
   Settings,
-  KeyRound,
   BarChart3,
   Brain
 } from 'lucide-react';
@@ -70,9 +68,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, currentTab, onNavigate }
         { id: 'admin-inventory', label: 'Pharmacy & Stock Inventory', icon: Pill, badge: 'Stock' },
         { id: 'admin-students', label: 'Student Management', icon: Users },
         { id: 'admin-staff', label: 'Doctor Profile (Dr. Nivetha)', icon: Stethoscope },
-        { id: 'admin-roles', label: 'RBAC & Access Control', icon: KeyRound },
-        { id: 'admin-research', label: 'Research & Model Analytics', icon: Brain, badge: 'Research' },
-        { id: 'admin-audit-logs', label: 'Audit & Compliance Logs', icon: FileCheck },
         { id: 'admin-settings', label: 'System & Security Settings', icon: Settings }
       ];
     }
