@@ -177,9 +177,9 @@ export const AiHealthAssistantModal: React.FC<AiHealthAssistantModalProps> = ({
         </div>
 
         {/* Quick Prompts */}
-        <div className="px-4 py-2 bg-slate-50 dark:bg-slate-850 border-t border-slate-100 dark:border-slate-800 overflow-x-auto">
-          <div className="flex items-center gap-1.5 whitespace-nowrap">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
+        <div className="shrink-0 px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 overflow-hidden">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mr-1">
               <HelpCircle className="w-3 h-3 text-blue-500" /> Suggestions:
             </span>
             {QUICK_PROMPTS.map((prompt, idx) => (
@@ -188,7 +188,7 @@ export const AiHealthAssistantModal: React.FC<AiHealthAssistantModalProps> = ({
                 type="button"
                 onClick={() => handleSend(prompt)}
                 disabled={isLoading}
-                className="px-2.5 py-1 rounded-full text-[11px] bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-750 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors shrink-0 cursor-pointer"
+                className="px-2.5 py-1 rounded-full text-[11px] bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer text-left"
               >
                 {prompt}
               </button>

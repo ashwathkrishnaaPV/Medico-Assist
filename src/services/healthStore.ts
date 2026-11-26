@@ -3,7 +3,7 @@ import { authService } from './authService';
 import {
   StudentProfileData, MedicalVisit, Prescription, PrescriptionVersion,
   DailyMonitoringPlan, DailyMonitoringResponse, NutritionPlan,
-  HealthCalendarEvent, NotificationItem, AuditLogEntry, LabReport, RestrictedEmergencyView,
+  HealthCalendarEvent, NotificationItem, AuditLogEntry, LabReport,
   MedicineStockItem, StockStatus
 } from '../types';
 
@@ -772,20 +772,6 @@ class HealthStore {
     };
     this.auditLogs.unshift(entry);
     this.notify();
-  }
-
-  getRestrictedEmergencyView(studentId: string, requestorInfo: string): RestrictedEmergencyView | undefined {
-    const profile = this.profiles[studentId];
-    if (!profile) return undefined;
-    this.logAudit('EMERGENCY_SCANNER', requestorInfo, 'EMERGENCY_RESPONDER', 'RESTRICTED_EMERGENCY_QR_ACCESS', studentId, `Emergency card accessed for ${profile.name}`, 'CRITICAL');
-    this.notify();
-    return {
-      studentName: profile.name, studentId: profile.studentId, bloodGroup: profile.bloodGroup,
-      accommodation: profile.accommodation || '', hostelBlock: profile.hostelBlock, hostelRoom: profile.hostelRoom,
-      criticalAllergies: profile.criticalAllergies, criticalConditions: profile.criticalConditions,
-      criticalMedications: profile.criticalMedications, emergencyContact: profile.emergencyContact,
-      medicalCentreContact: profile.medicalCentreContact, token: `EMERGENCY_TOKEN_${profile.studentId}_${Date.now()}`
-    };
   }
 
   // --- Pharmacy & Medicine Stock Inventory ---

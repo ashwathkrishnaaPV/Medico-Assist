@@ -102,7 +102,6 @@ function createApp() {
   app.use('/api/calendar',      require('./routes/calendar'));
   app.use('/api/notifications', require('./routes/notifications'));
   app.use('/api/audit',         require('./routes/audit'));
-  app.use('/api/emergency',     require('./routes/emergency'));
   app.use('/api/research',      require('./routes/research'));
   app.use('/api/inventory',     require('./routes/inventory'));
   app.use('/api/ai',            require('./routes/ai'));

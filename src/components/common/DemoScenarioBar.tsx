@@ -6,14 +6,12 @@ import { healthStore } from '../../services/healthStore';
 interface DemoScenarioBarProps {
   currentTab: string;
   onNavigate: (tab: string) => void;
-  onOpenEmergencyModal: () => void;
   onOpenDiffViewer: () => void;
 }
 
 export const DemoScenarioBar: React.FC<DemoScenarioBarProps> = ({
   currentTab: _currentTab,
   onNavigate,
-  onOpenEmergencyModal,
   onOpenDiffViewer
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -32,10 +30,8 @@ export const DemoScenarioBar: React.FC<DemoScenarioBarProps> = ({
     { num: 10, label: 'Doctor Monitoring Triage', tab: 'medical-monitoring', role: 'MEDICAL_STAFF', desc: 'Medical centre receives response & reviews 3-day summary' },
     { num: 11, label: 'Prescription V2 Issued', tab: 'medical-prescriptions', role: 'MEDICAL_STAFF', desc: 'Doctor updates Rx to Version 2 with new instructions' },
     { num: 12, label: 'Rx V1 vs V2 Version Diff', tab: 'student-prescriptions', role: 'STUDENT', action: 'DIFF', desc: 'Student alerted; compares Version 1 vs Version 2 diff' },
-    { num: 13, label: 'Emergency QR Scan Audit', tab: 'admin-emergency-logs', role: 'ADMIN', action: 'QR', desc: 'Scan emergency token; minimal info exposed & logged' },
-    { num: 14, label: 'Admin Enterprise Audit', tab: 'admin-audit-logs', role: 'ADMIN', desc: 'Admin reviews full compliance audit trail' },
-    { num: 15, label: 'AI Model Evaluation', tab: 'admin-research', role: 'ADMIN', desc: 'Evaluate NEWS2 vs ML prior benchmark (AUROC 0.932) & XAI feature attribution' },
-    { num: 16, label: 'Emergency Responder Desk', tab: 'emergency-responder-portal', role: 'EMERGENCY_RESPONDER', desc: 'Paramedic scans token; verifies triage dataset with 85.4% privacy preservation' }
+    { num: 13, label: 'Admin Enterprise Audit', tab: 'admin-audit-logs', role: 'ADMIN', desc: 'Admin reviews full compliance audit trail' },
+    { num: 14, label: 'AI Model Evaluation', tab: 'admin-research', role: 'ADMIN', desc: 'Evaluate NEWS2 vs ML prior benchmark (AUROC 0.932) & XAI feature attribution' }
   ];
 
   const goToStep = (stepNum: number) => {
@@ -46,9 +42,7 @@ export const DemoScenarioBar: React.FC<DemoScenarioBarProps> = ({
     authService.switchRole(step.role as any);
     onNavigate(step.tab);
 
-    if (step.action === 'QR') {
-      setTimeout(() => onOpenEmergencyModal(), 300);
-    } else if (step.action === 'DIFF') {
+    if (step.action === 'DIFF') {
       setTimeout(() => onOpenDiffViewer(), 300);
     }
   };

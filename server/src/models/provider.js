@@ -14,7 +14,6 @@ const mongooseModels = {
   CalendarEvent: require('./CalendarEvent'),
   Notification: require('./Notification'),
   AuditLog: require('./AuditLog'),
-  EmergencyToken: require('./EmergencyToken'),
   LabReport: require('./LabReport'),
   MedicineInventory: require('./MedicineInventory')
 };

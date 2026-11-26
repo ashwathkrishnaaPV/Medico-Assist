@@ -10,7 +10,6 @@ export const TAB_TO_PATH: Record<string, string> = {
   'student-nutrition': '/student/nutrition',
   'student-daily-check': '/student/daily-check',
   'student-calendar': '/student/calendar',
-  'student-emergency': '/student/emergency',
 
   // Doctor / Medical routes
   'medical-dashboard': '/doctor/dashboard',
@@ -28,7 +27,6 @@ export const TAB_TO_PATH: Record<string, string> = {
   'admin-staff': '/admin/staff',
   'admin-roles': '/admin/roles',
   'admin-research': '/admin/research',
-  'admin-emergency-logs': '/admin/emergency-logs',
   'admin-audit-logs': '/admin/audit-logs',
   'admin-settings': '/admin/settings',
 
@@ -36,10 +34,6 @@ export const TAB_TO_PATH: Record<string, string> = {
   'research-dashboard': '/research/dashboard',
   'research-experiments': '/research/experiments',
   'research-cohort': '/research/cohort',
-
-  // Emergency Responder routes
-  'emergency-responder-portal': '/emergency/portal',
-  'emergency-responder-metrics': '/emergency/metrics',
 
   // Auth
   'login': '/login'
@@ -57,7 +51,6 @@ export const PATH_TO_TAB: Record<string, string> = {
   '/student/nutrition': 'student-nutrition',
   '/student/daily-check': 'student-daily-check',
   '/student/calendar': 'student-calendar',
-  '/student/emergency': 'student-emergency',
 
   // Doctor
   '/doctor/dashboard': 'medical-dashboard',
@@ -87,7 +80,6 @@ export const PATH_TO_TAB: Record<string, string> = {
   '/admin/staff': 'admin-staff',
   '/admin/roles': 'admin-roles',
   '/admin/research': 'admin-research',
-  '/admin/emergency-logs': 'admin-emergency-logs',
   '/admin/audit-logs': 'admin-audit-logs',
   '/admin/settings': 'admin-settings',
 
@@ -96,11 +88,6 @@ export const PATH_TO_TAB: Record<string, string> = {
   '/research': 'research-dashboard',
   '/research/experiments': 'research-experiments',
   '/research/cohort': 'research-cohort',
-
-  // Emergency Responder
-  '/emergency/portal': 'emergency-responder-portal',
-  '/emergency': 'emergency-responder-portal',
-  '/emergency/metrics': 'emergency-responder-metrics',
 
   // Auth
   '/login': 'login'
@@ -112,7 +99,6 @@ export function getDefaultTabForRole(role: Role): string {
     case 'MEDICAL_STAFF': return 'medical-dashboard';
     case 'ADMIN': return 'admin-dashboard';
     case 'RESEARCHER': return 'research-dashboard';
-    case 'EMERGENCY_RESPONDER': return 'emergency-responder-portal';
     default: return 'student-dashboard';
   }
 }
@@ -128,7 +114,6 @@ export function resolveTabFromUrl(role: Role, authenticated: boolean): string {
     if (role === 'MEDICAL_STAFF' && matchedTab.startsWith('medical-')) return matchedTab;
     if (role === 'ADMIN' && matchedTab.startsWith('admin-')) return matchedTab;
     if (role === 'RESEARCHER' && matchedTab.startsWith('research-')) return matchedTab;
-    if (role === 'EMERGENCY_RESPONDER' && matchedTab.startsWith('emergency-')) return matchedTab;
   }
 
   return getDefaultTabForRole(role);

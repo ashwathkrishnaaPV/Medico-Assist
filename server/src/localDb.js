@@ -21,7 +21,6 @@ const defaultState = {
   calendarEvents: [],
   notifications: [],
   auditLogs: [],
-  emergencyTokens: [],
   labReports: [],
   medicineInventory: []
 };
@@ -251,7 +250,6 @@ module.exports = {
   CalendarEvent: new Collection('calendarEvents'),
   Notification: new Collection('notifications'),
   AuditLog: new Collection('auditLogs'),
-  EmergencyToken: new Collection('emergencyTokens'),
   LabReport: new Collection('labReports'),
   MedicineInventory: new Collection('medicineInventory'),
   readDb,

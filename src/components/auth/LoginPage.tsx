@@ -195,14 +195,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           RIGHT 50% — PRISTINE ICE WHITE (#F6FAFD) WITH CYLINDER SHAPES
       ════════════════════════════════════════════════════════════ */}
       <div className="w-full lg:w-1/2 bg-[#F6FAFD] text-[#0A1931] flex flex-col justify-between p-6 sm:p-10 lg:p-14 overflow-y-auto">
-
-        {/* Top Right Status Pill (Cylinder) */}
-        <div className="flex items-center justify-end">
-          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white border-2 border-[#B3CFE5] text-xs text-[#1A3D63] font-bold shadow-sm">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>PostgreSQL · Live Connected</span>
-          </div>
-        </div>
+        <div />
 
         {/* Form Container (Centered Vertically) */}
         <div className="max-w-md w-full mx-auto my-auto py-6 space-y-6">

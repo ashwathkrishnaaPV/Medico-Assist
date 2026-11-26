@@ -8,7 +8,6 @@ import {
   Apple,
   Calendar,
   CheckSquare,
-  AlertTriangle,
   Users,
   Stethoscope,
   Shield,
@@ -16,8 +15,7 @@ import {
   Settings,
   KeyRound,
   BarChart3,
-  Brain,
-  ShieldAlert
+  Brain
 } from 'lucide-react';
 import { Role } from '../../types';
 import { healthStore } from '../../services/healthStore';
@@ -47,8 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, currentTab, onNavigate }
         { id: 'student-bmi', label: 'BMI & Measurements', icon: Activity },
         { id: 'student-nutrition', label: 'Nutrition Plan', icon: Apple },
         { id: 'student-daily-check', label: 'Daily Health Check', icon: CheckSquare, badge: monitoringPlan ? (submittedToday ? 'Done' : 'Active') : undefined },
-        { id: 'student-calendar', label: 'Health Calendar', icon: Calendar },
-        { id: 'student-emergency', label: 'Emergency Medical Card', icon: AlertTriangle, badge: 'Protected' }
+        { id: 'student-calendar', label: 'Health Calendar', icon: Calendar }
       ];
     } else if (role === 'MEDICAL_STAFF') {
       return [
@@ -66,11 +63,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, currentTab, onNavigate }
         { id: 'research-experiments', label: 'Benchmark Experiments', icon: BarChart3, badge: 'A/B/C' },
         { id: 'research-cohort', label: 'De-identified Cohort', icon: Users, badge: 'k-Anon' }
       ];
-    } else if (role === 'EMERGENCY_RESPONDER') {
-      return [
-        { id: 'emergency-responder-portal', label: 'Emergency Scanner Desk', icon: ShieldAlert, badge: 'Triage' },
-        { id: 'emergency-responder-metrics', label: 'Disclosure Score Metrics', icon: Activity }
-      ];
     } else {
       // ADMIN
       return [
@@ -80,7 +72,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, currentTab, onNavigate }
         { id: 'admin-staff', label: 'Doctor Profile (Dr. Nivetha)', icon: Stethoscope },
         { id: 'admin-roles', label: 'RBAC & Access Control', icon: KeyRound },
         { id: 'admin-research', label: 'Research & Model Analytics', icon: Brain, badge: 'Research' },
-        { id: 'admin-emergency-logs', label: 'Emergency Access Audit', icon: AlertTriangle, badge: 'Restricted' },
         { id: 'admin-audit-logs', label: 'Audit & Compliance Logs', icon: FileCheck },
         { id: 'admin-settings', label: 'System & Security Settings', icon: Settings }
       ];
@@ -100,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, currentTab, onNavigate }
   };
 
   return (
-    <aside className="w-64 shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto bg-white dark:bg-[#0A1931] border-r border-[#B3CFE5]/40 dark:border-[#1A3D63] text-[#0A1931] dark:text-[#F6FAFD] p-4 flex flex-col justify-between transition-colors">
+    <aside className="w-64 shrink-0 h-full overflow-y-auto bg-white dark:bg-[#0A1931] border-r border-[#B3CFE5]/40 dark:border-[#1A3D63] text-[#0A1931] dark:text-[#F6FAFD] p-4 flex flex-col justify-between transition-colors">
       
       <div className="space-y-1">
         <div className="px-3 py-2 text-[10px] font-extrabold uppercase tracking-wider text-[#4A7FA7] dark:text-[#B3CFE5]/70">

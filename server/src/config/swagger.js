@@ -212,21 +212,6 @@ const swaggerSpec = {
         responses: { 201: { description: 'Backup snapshot created' } }
       }
     },
-    '/emergency/token': {
-      post: {
-        tags: ['Emergency Access'],
-        summary: 'Generate ephemeral SHA-256 hashed emergency QR token (15-min TTL)',
-        responses: { 201: { description: 'Token issued' } }
-      }
-    },
-    '/emergency/access': {
-      post: {
-        tags: ['Emergency Access'],
-        summary: 'Redeem emergency token for minimum-necessary 7-field triage dataset',
-        security: [],
-        responses: { 200: { description: 'Minimum-necessary emergency card' }, 401: { description: 'Expired/invalid token' } }
-      }
-    },
     '/ai/health-info': {
       post: {
         tags: ['AI Assistant'],

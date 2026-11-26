@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Calendar, Pill, Apple, Activity, AlertTriangle,
+  Calendar, Pill, Apple, Activity,
   ChevronRight, FileText, User, Clock, TrendingUp, Sparkles
 } from 'lucide-react';
 
@@ -11,10 +11,9 @@ import { AiHealthAssistantModal } from '../common/AiHealthAssistantModal';
 
 interface StudentDashboardProps {
   onNavigate: (tab: string) => void;
-  onOpenEmergencyModal: () => void;
 }
 
-export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate, onOpenEmergencyModal }) => {
+export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate }) => {
   const [profile, setProfile] = useState<StudentProfileData | undefined>();
   const [visits, setVisits] = useState<MedicalVisit[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -302,25 +301,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ onNavigate, 
           )}
         </div>
 
-      </div>
-
-      {/* Emergency Card Banner */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl bg-slate-900 dark:bg-slate-900 border border-slate-700 dark:border-slate-800 shadow-md">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-rose-600 border border-rose-500">
-            <AlertTriangle className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <div className="font-bold text-sm text-white">Digital Emergency Medical Card</div>
-            <p className="text-xs text-slate-300 mt-0.5">Provides first responders with critical blood group & allergy data.</p>
-          </div>
-        </div>
-        <button
-          onClick={onOpenEmergencyModal}
-          className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shrink-0 transition-colors shadow-sm"
-        >
-          View Emergency Card
-        </button>
       </div>
 
       <AiHealthAssistantModal

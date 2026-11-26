@@ -4,7 +4,6 @@ import {
   ShieldCheck,
   Stethoscope,
   GraduationCap,
-  AlertTriangle,
   LogOut,
   Sun,
   Moon
@@ -18,12 +17,11 @@ import { NotificationCentre } from './NotificationCentre';
 interface NavbarProps {
   currentTab?: string;
   onNavigate: (tab: string) => void;
-  onOpenEmergencyModal: () => void;
   darkMode: boolean;
   onToggleDark: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ currentTab: _currentTab, onNavigate, onOpenEmergencyModal, darkMode, onToggleDark }) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentTab: _currentTab, onNavigate, darkMode, onToggleDark }) => {
   const [currentUser, setCurrentUser] = useState<User>(() => {
     const u = authService.getCurrentUser();
     if (u.email === 'jenkins@sece.ac.in') {
@@ -126,16 +124,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab: _currentTab, onNavig
 
           {/* Right Actions */}
           <div className="flex items-center gap-2.5">
-            
-            {/* Quick Emergency Medical Card Trigger */}
-            <button
-              onClick={onOpenEmergencyModal}
-              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/50 border-2 border-rose-200 dark:border-rose-800 rounded-full transition-all shadow-xs"
-              title="Quick access to emergency medical card & QR token"
-            >
-              <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 animate-bounce" />
-              <span>Emergency Card</span>
-            </button>
 
             {/* Dark / Light Mode Toggle — Available for all roles */}
             <button

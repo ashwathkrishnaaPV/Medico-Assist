@@ -8,7 +8,6 @@
  * 4. Longitudinal Health Analytics: Vital trends & anomaly detection
  */
 
-const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const {
   evaluateMLRiskStratification,
@@ -75,64 +74,7 @@ async function runTestSuite() {
   assert(researcherAccess.allowed === false && researcherAccess.reason === 'RESEARCHER_RESTRICTED', 'Privacy Guard: Researcher is blocked from raw identifiable patient records');
 
   // ----------------------------------------------------
-  // TEST GROUP 2: Privacy-Preserving Emergency Access Protocol
-  // ----------------------------------------------------
-  console.log('\n--- TEST GROUP 2: Privacy-Preserving Emergency Access ---');
-
-  const rawEmergencyToken = 'emg_' + crypto.randomBytes(24).toString('hex');
-  const tokenHash = crypto.createHash('sha256').update(rawEmergencyToken).digest('hex');
-
-  assert(rawEmergencyToken.startsWith('emg_') && rawEmergencyToken.length > 30, 'Emergency token is high-entropy cryptographic random string');
-  assert(tokenHash.length === 64, 'Token is hashed with SHA-256 before database storage');
-
-  // Verify TTL Expiration
-  const now = Date.now();
-  const validExpiresAt = new Date(now + 15 * 60 * 1000);
-  const expiredExpiresAt = new Date(now - 1000);
-
-  assert(validExpiresAt.getTime() > now, 'Fresh emergency token has active TTL (15 minutes)');
-  assert(expiredExpiresAt.getTime() < now, 'Expired emergency token is correctly identified');
-
-  // Verify Minimum Necessary Disclosure Dataset
-  const mockFullEhrProfile = {
-    name: 'Alex Rivera',
-    studentId: 'STU1023',
-    bloodGroup: 'O+',
-    criticalAllergies: ['Penicillin', 'Peanuts'],
-    criticalConditions: ['Asthma (Moderate)'],
-    criticalMedications: ['Albuterol Inhaler'],
-    emergencyContact: { name: 'Elena Rivera', relation: 'Mother', phone: '+91 98401 23456' },
-    // Sensitive EHR fields that MUST be withheld
-    psychiatricNotes: 'Confidential therapy session notes',
-    clinicalConsultations: [{ notes: 'Detailed physical examination' }],
-    prescriptionsHistory: [{ reason: 'Confidential treatment' }],
-    nutritionPlan: { details: 'Dietary intake' },
-    academicGpa: 8.9,
-    hostelRoomPin: '4021'
-  };
-
-  const minimumEmergencyDataset = {
-    studentName: mockFullEhrProfile.name,
-    studentId: mockFullEhrProfile.studentId,
-    bloodGroup: mockFullEhrProfile.bloodGroup,
-    criticalAllergies: mockFullEhrProfile.criticalAllergies,
-    criticalConditions: mockFullEhrProfile.criticalConditions,
-    criticalMedications: mockFullEhrProfile.criticalMedications,
-    emergencyContact: mockFullEhrProfile.emergencyContact
-  };
-
-  const fullFieldsCount = 48;
-  const exposedFieldsCount = Object.keys(minimumEmergencyDataset).length; // 7 fields
-  const withheldFieldsCount = fullFieldsCount - exposedFieldsCount; // 41 fields
-  const privacyPreservationRatio = ((withheldFieldsCount / fullFieldsCount) * 100).toFixed(1);
-
-  assert(!('psychiatricNotes' in minimumEmergencyDataset), 'Minimum Necessary Standard: Psychiatric & sensitive clinical notes are withheld');
-  assert(!('academicGpa' in minimumEmergencyDataset), 'Minimum Necessary Standard: Non-medical administrative data is withheld');
-  assert(exposedFieldsCount === 7, 'Strictly 7 emergency life-saving fields are exposed');
-  assert(parseFloat(privacyPreservationRatio) >= 80.0, `Minimum Necessary Disclosure Score achieves ${privacyPreservationRatio}% privacy preservation (>=80% target)`);
-
-  // ----------------------------------------------------
-  // TEST GROUP 3: Explainable AI & Clinical Risk Stratification
+  // TEST GROUP 2: Explainable AI & Clinical Risk Stratification
   // ----------------------------------------------------
   console.log('\n--- TEST GROUP 3: Explainable AI & Clinical Risk Stratification ---');
 

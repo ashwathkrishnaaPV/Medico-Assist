@@ -3,7 +3,6 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 // Common Components
 import { Navbar } from './components/common/Navbar';
 import { Sidebar } from './components/common/Sidebar';
-import { EmergencyModal } from './components/common/EmergencyModal';
 import { VersionDiffViewer } from './components/common/VersionDiffViewer';
 
 // Lazy-loaded Route Views (Code Splitting)
@@ -30,11 +29,9 @@ const StudentManagement = lazy(() => import('./components/admin/StudentManagemen
 const MedicalStaffManagement = lazy(() => import('./components/admin/MedicalStaffManagement').then(m => ({ default: m.MedicalStaffManagement })));
 const RoleManagement = lazy(() => import('./components/admin/RoleManagement').then(m => ({ default: m.RoleManagement })));
 const AuditLogViewer = lazy(() => import('./components/admin/AuditLogViewer').then(m => ({ default: m.AuditLogViewer })));
-const RestrictedEmergencyAccessLog = lazy(() => import('./components/admin/RestrictedEmergencyAccessLog').then(m => ({ default: m.RestrictedEmergencyAccessLog })));
 const SystemSettings = lazy(() => import('./components/admin/SystemSettings').then(m => ({ default: m.SystemSettings })));
 
 const ResearcherDashboard = lazy(() => import('./components/researcher/ResearcherDashboard').then(m => ({ default: m.ResearcherDashboard })));
-const EmergencyResponderPortal = lazy(() => import('./components/emergency/EmergencyResponderPortal').then(m => ({ default: m.EmergencyResponderPortal })));
 
 // Services & Types
 import { authService } from './services/authService';
@@ -116,7 +113,6 @@ export function App() {
   }, [currentUser.role, isAuthenticated]);
 
   // Modals
-  const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
   const [isDiffViewerOpen, setIsDiffViewerOpen] = useState(false);
 
   useEffect(() => {
@@ -177,13 +173,6 @@ export function App() {
       return;
     }
 
-    if (currentUser.role === 'EMERGENCY_RESPONDER' && (tab.startsWith('student-') || tab.startsWith('medical-') || tab.startsWith('admin-'))) {
-      alert(`Role Access Denied: Emergency responders can only access the emergency triage desk.`);
-      setCurrentTab('emergency-responder-portal');
-      updateBrowserUrl('emergency-responder-portal', true);
-      return;
-    }
-
     setCurrentTab(tab);
     updateBrowserUrl(tab);
   };
@@ -192,7 +181,7 @@ export function App() {
     switch (currentTab) {
       // Student Views
       case 'student-dashboard':
-        return <StudentDashboard onNavigate={handleNavigate} onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)} />;
+        return <StudentDashboard onNavigate={handleNavigate} />;
       case 'student-profile':
         return <StudentProfile />;
       case 'student-history':
@@ -207,19 +196,6 @@ export function App() {
         return <StudentDailyCheck />;
       case 'student-calendar':
         return <StudentCalendar />;
-      case 'student-emergency':
-        return (
-          <div className="p-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-4">
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Emergency Digital Card</h2>
-            <p className="text-xs text-slate-500">Launch restricted emergency card & cryptographic token view.</p>
-            <button
-              onClick={() => setIsEmergencyModalOpen(true)}
-              className="px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
-            >
-              Open Digital Emergency Card
-            </button>
-          </div>
-        );
 
       // Medical Centre Views
       case 'medical-dashboard':
@@ -250,8 +226,6 @@ export function App() {
         return <RoleManagement />;
       case 'admin-research':
         return <ResearcherDashboard />;
-      case 'admin-emergency-logs':
-        return <RestrictedEmergencyAccessLog />;
       case 'admin-audit-logs':
         return <AuditLogViewer />;
       case 'admin-settings':
@@ -263,13 +237,8 @@ export function App() {
       case 'research-cohort':
         return <ResearcherDashboard />;
 
-      // Emergency Responder Views
-      case 'emergency-responder-portal':
-      case 'emergency-responder-metrics':
-        return <EmergencyResponderPortal />;
-
       default:
-        return <StudentDashboard onNavigate={handleNavigate} onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)} />;
+        return <StudentDashboard onNavigate={handleNavigate} />;
     }
   };
 
@@ -277,7 +246,6 @@ export function App() {
     if (currentUser.role === 'STUDENT') return 'theme-student';
     if (currentUser.role === 'MEDICAL_STAFF') return 'theme-medical';
     if (currentUser.role === 'RESEARCHER') return 'theme-researcher';
-    if (currentUser.role === 'EMERGENCY_RESPONDER') return 'theme-emergency';
     return 'theme-admin';
   };
 
@@ -321,44 +289,38 @@ export function App() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 ${getThemeClass()} transition-colors duration-200`}>
+    <div className={`h-screen overflow-hidden print:h-auto print:overflow-visible flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 ${getThemeClass()} transition-colors duration-200`}>
       <Navbar
         currentTab={currentTab}
-        onOpenEmergencyModal={() => setIsEmergencyModalOpen(true)}
         onNavigate={handleNavigate}
         darkMode={darkMode}
         onToggleDark={() => setDarkMode(!darkMode)}
       />
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0 overflow-hidden print:overflow-visible">
         <Sidebar
           role={currentUser.role}
           currentTab={currentTab}
           onNavigate={handleNavigate}
         />
 
-        <main className="flex-1 p-4 sm:p-6 overflow-x-hidden max-w-7xl mx-auto w-full">
-          <Suspense
-            fallback={
-              <div className="flex items-center justify-center py-20 text-slate-400">
-                <div className="text-center space-y-2">
-                  <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
-                  <p className="text-xs font-bold uppercase tracking-wider">Loading view…</p>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 print:overflow-visible print:p-0">
+          <div className="max-w-7xl mx-auto w-full">
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center py-20 text-slate-400">
+                  <div className="text-center space-y-2">
+                    <div className="w-8 h-8 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
+                    <p className="text-xs font-bold uppercase tracking-wider">Loading view…</p>
+                  </div>
                 </div>
-              </div>
-            }
-          >
-            {renderActiveView()}
-          </Suspense>
+              }
+            >
+              {renderActiveView()}
+            </Suspense>
+          </div>
         </main>
       </div>
-
-      {/* Emergency Card Modal */}
-      <EmergencyModal
-        isOpen={isEmergencyModalOpen}
-        onClose={() => setIsEmergencyModalOpen(false)}
-        studentId={currentUser.studentId || currentUser.id}
-      />
 
       {/* Prescription Version Diff Viewer Modal */}
       {v1 && v2 && activeRx && (

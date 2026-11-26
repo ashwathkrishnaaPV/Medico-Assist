@@ -202,25 +202,6 @@ export interface AuditLogEntry {
   sensitivity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 }
 
-export interface RestrictedEmergencyView {
-  studentName: string;
-  studentId: string;
-  bloodGroup: string;
-  accommodation: string;
-  hostelBlock?: string;
-  hostelRoom?: string;
-  criticalAllergies: string[];
-  criticalConditions: string[];
-  criticalMedications: string[];
-  emergencyContact: {
-    name: string;
-    relation: string;
-    phone: string;
-  };
-  medicalCentreContact: string;
-  token: string;
-}
-
 // -------------------------------------------------------------
 // RESEARCH & CLINICAL DECISION SUPPORT EXTENSIONS
 // -------------------------------------------------------------
