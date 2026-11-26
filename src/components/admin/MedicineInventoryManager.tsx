@@ -27,6 +27,15 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [customLoadAmount, setCustomLoadAmount] = useState<number>(100);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newMedName, setNewMedName] = useState('');
+  const [newMedGeneric, setNewMedGeneric] = useState('');
+  const [newMedCategory, setNewMedCategory] = useState('Tablet');
+  const [newMedDosage, setNewMedDosage] = useState('1 tablet');
+  const [newMedQuantity, setNewMedQuantity] = useState<number>(100);
+  const [newMedThreshold, setNewMedThreshold] = useState<number>(20);
+  const [newMedSymptoms, setNewMedSymptoms] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     const refreshInventory = () => {
@@ -97,6 +106,41 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
       return matchesSearch && matchesCat && matchesStatus;
     });
   }, [items, searchQuery, selectedCategory, selectedStatus]);
+
+  const handleAddMedicine = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddError(null);
+    if (!newMedName.trim()) {
+      setAddError('Medicine name is required.');
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      const created = await healthStore.addMedicineToInventory({
+        name: newMedName.trim(),
+        generic: newMedGeneric.trim(),
+        category: newMedCategory,
+        isTablet: newMedCategory === 'Tablet' || newMedCategory === 'Capsule',
+        defaultDosage: newMedDosage.trim() || '1 tablet',
+        symptoms: newMedSymptoms.trim(),
+        quantity: Math.max(0, Number(newMedQuantity) || 0),
+        minThreshold: Math.max(1, Number(newMedThreshold) || 20)
+      });
+      setShowAddModal(false);
+      setNewMedName('');
+      setNewMedGeneric('');
+      setNewMedCategory('Tablet');
+      setNewMedDosage('1 tablet');
+      setNewMedQuantity(100);
+      setNewMedThreshold(20);
+      setNewMedSymptoms('');
+      showToast(`Added "${created.name}" (${created.quantity} units) to inventory.`);
+    } catch (err: unknown) {
+      setAddError(err instanceof Error ? err.message : 'Failed to add medicine.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   // Handle single quantity adjustment
   const handleQuantityChange = (id: string, value: number) => {
@@ -188,6 +232,15 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => { setAddError(null); setShowAddModal(true); }}
+            disabled={isUpdating}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            Add Medicine
+          </button>
+
           <button
             onClick={() => handleRestockLow(50)}
             disabled={isUpdating}
@@ -630,6 +683,137 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Medicine Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Plus className="w-5 h-5 text-emerald-600" />
+                Add New Medicine to Inventory
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {addError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs font-bold">
+                {addError}
+              </div>
+            )}
+
+            <form onSubmit={handleAddMedicine} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Medicine Name &amp; Strength <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Azithromycin 500mg"
+                  value={newMedName}
+                  onChange={e => setNewMedName(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Generic Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Azithromycin"
+                    value={newMedGeneric}
+                    onChange={e => setNewMedGeneric(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                  <select
+                    value={newMedCategory}
+                    onChange={e => setNewMedCategory(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold"
+                  >
+                    {['Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment', 'Drops', 'Inhaler', 'Other'].map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Default Dosage</label>
+                  <input
+                    type="text"
+                    placeholder="1 tablet"
+                    value={newMedDosage}
+                    onChange={e => setNewMedDosage(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Initial Qty</label>
+                  <input
+                    type="number"
+                    min={0}
+                    required
+                    value={newMedQuantity}
+                    onChange={e => setNewMedQuantity(Math.max(0, Number(e.target.value)))}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Min Alert</label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={newMedThreshold}
+                    onChange={e => setNewMedThreshold(Math.max(1, Number(e.target.value)))}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Symptoms / Indications</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Bacterial infection, fever"
+                  value={newMedSymptoms}
+                  onChange={e => setNewMedSymptoms(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="border-t border-slate-200 dark:border-slate-800 pt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {isUpdating ? 'Saving…' : 'Add Medicine'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

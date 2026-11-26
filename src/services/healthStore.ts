@@ -886,6 +886,44 @@ class HealthStore {
     return undefined;
   }
 
+  async addMedicineToInventory(payload: {
+    name: string;
+    generic?: string;
+    category?: string;
+    isTablet?: boolean;
+    defaultDosage?: string;
+    symptoms?: string;
+    quantity: number;
+    minThreshold?: number;
+  }): Promise<MedicineStockItem> {
+    try {
+      const res = await api.post('/inventory', payload);
+      const created = unwrapData<any>(res);
+      const q = Number(created?.quantity ?? payload.quantity) || 0;
+      const status: StockStatus = q >= 50 ? 'Full Stock' : q >= 10 ? 'Less Stock' : 'Restock';
+      const item: MedicineStockItem = {
+        id: String(created?.id || created?._id || `med_${Date.now()}`),
+        catalogId: Number(created?.catalogId) || this.medicineInventory.length + 1,
+        name: created?.name || payload.name,
+        generic: created?.generic ?? payload.generic ?? '',
+        category: created?.category || payload.category || 'Tablet',
+        isTablet: Boolean(created?.isTablet ?? payload.isTablet ?? true),
+        defaultDosage: created?.defaultDosage || payload.defaultDosage || '1 tablet',
+        symptoms: created?.symptoms ?? payload.symptoms ?? '',
+        quantity: q,
+        minThreshold: Number(created?.minThreshold ?? payload.minThreshold) || 20,
+        status,
+        lastRestocked: created?.lastRestocked || new Date().toISOString(),
+        updatedAt: created?.updatedAt || new Date().toISOString()
+      };
+      this.medicineInventory = [item, ...this.medicineInventory];
+      this.notify();
+      return item;
+    } catch (err) {
+      throw new Error(extractApiError(err, 'Failed to add medicine to inventory.'));
+    }
+  }
+
   async updateMedicineStock(id: string, quantity: number, minThreshold?: number): Promise<MedicineStockItem | null> {
     const q = Math.max(0, quantity);
     const status: StockStatus = q >= 50 ? 'Full Stock' : (q >= 10 ? 'Less Stock' : 'Restock');

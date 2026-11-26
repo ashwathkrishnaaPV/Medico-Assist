@@ -234,6 +234,17 @@ const verifyEmergencyTokenSchema = z.object({
   justification: z.string().trim().min(5).max(300).optional().default('Emergency medical triage lookup')
 }).strict();
 
+const createInventorySchema = z.object({
+  name: nonEmptyTrimmed(2, 150),
+  generic: z.string().trim().max(150).optional().default(''),
+  category: z.string().trim().min(2).max(60).optional().default('Tablet'),
+  isTablet: z.boolean().optional().default(true),
+  defaultDosage: z.string().trim().max(80).optional().default('1 tablet'),
+  symptoms: z.string().trim().max(250).optional().default(''),
+  quantity: z.coerce.number().int().min(0).max(100000),
+  minThreshold: z.coerce.number().int().min(1).max(10000).optional().default(20)
+}).strict();
+
 const updateInventorySchema = z.object({
   quantity: z.coerce.number().int().min(0).max(100000),
   minThreshold: z.coerce.number().int().min(1).max(10000).optional()
@@ -303,6 +314,7 @@ module.exports = {
   createNotificationSchema,
   generateEmergencyTokenSchema,
   verifyEmergencyTokenSchema,
+  createInventorySchema,
   updateInventorySchema,
   bulkInventorySchema,
   deductInventorySchema,

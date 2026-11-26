@@ -5,6 +5,7 @@ const { getModel } = require('../models/provider');
 const { authenticate, authorizeRoles } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const {
+  createInventorySchema,
   updateInventorySchema,
   bulkInventorySchema,
   deductInventorySchema
@@ -103,6 +104,72 @@ router.get('/', authenticate, async (req, res) => {
     });
   }
 });
+
+// POST /api/inventory — Add a new medicine to the pharmacy inventory (Admin / Medical Staff)
+router.post(
+  '/',
+  authenticate,
+  authorizeRoles('ADMIN', 'MEDICAL_STAFF'),
+  validate({ body: createInventorySchema }),
+  async (req, res) => {
+    try {
+      const MedicineInventory = getModel('MedicineInventory');
+      const { name, generic, category, isTablet, defaultDosage, symptoms, quantity, minThreshold } = req.body;
+
+      const allItems = await MedicineInventory.find({});
+      const duplicate = allItems.find(
+        (it) => String(it.name || '').trim().toLowerCase() === name.trim().toLowerCase()
+      );
+      if (duplicate) {
+        return res.status(409).json({
+          success: false,
+          error: { code: 'MEDICINE_EXISTS', message: `Medicine "${name}" already exists in inventory.` }
+        });
+      }
+
+      const maxCatalogId = allItems.reduce((max, it) => Math.max(max, Number(it.catalogId) || 0), 0);
+      const nextCatalogId = maxCatalogId + 1;
+      const now = new Date().toISOString();
+      const status = computeStockStatus(quantity, minThreshold);
+
+      const created = await MedicineInventory.create({
+        id: `med_${nextCatalogId}_${Date.now()}`,
+        catalogId: nextCatalogId,
+        name: name.trim(),
+        generic: (generic || '').trim(),
+        category: (category || 'Tablet').trim(),
+        isTablet: Boolean(isTablet),
+        defaultDosage: (defaultDosage || '1 tablet').trim(),
+        symptoms: (symptoms || '').trim(),
+        quantity: Number(quantity),
+        minThreshold: Number(minThreshold) || 20,
+        status,
+        lastRestocked: now,
+        updatedAt: now
+      });
+
+      await logAuditEvent(req, {
+        action: 'CREATE_INVENTORY_MEDICINE',
+        resourceType: 'INVENTORY',
+        resource: String(created.id || created._id),
+        details: `Added medicine "${name}" (${category || 'Tablet'}) with initial stock ${quantity}`,
+        sensitivity: 'LOW',
+        outcome: 'SUCCESS'
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Medicine added to inventory.',
+        data: toPlain(created)
+      });
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        error: { code: 'INVENTORY_CREATE_ERROR', message: err.message }
+      });
+    }
+  }
+);
 
 // PUT /api/inventory/:id — Update medicine quantity & threshold (Admin/Medical Staff)
 router.put(
