@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Pill, Search, AlertCircle, CheckCircle2, AlertTriangle, 
   Plus, Minus, PackageCheck, Layers, Check, Upload, FileSpreadsheet, Download
@@ -699,8 +700,8 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
       </div>
 
       {/* Bulk Load Modal */}
-      {showBulkModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      {showBulkModal && createPortal(
+        <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-sky-50 dark:bg-sky-950/60 rounded-xl text-sky-600 dark:text-sky-400">
@@ -783,12 +784,13 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Add New Medicine Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+      {showAddModal && createPortal(
+        <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-center justify-center p-4">
           <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl ${addMode === 'upload' ? 'max-w-2xl' : 'max-w-lg'} w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto`}>
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
@@ -1085,7 +1087,8 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
