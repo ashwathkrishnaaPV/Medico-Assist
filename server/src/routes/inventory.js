@@ -192,6 +192,7 @@ router.post(
 
       const added = [];
       const skipped = [];
+      const docsToInsert = [];
 
       for (const entry of medicines) {
         const cleanName = entry.name.trim();
@@ -205,8 +206,8 @@ router.post(
         const quantity = Number(entry.quantity);
         const minThreshold = Number(entry.minThreshold) || 20;
         const catalogId = nextCatalogId++;
-        const created = await MedicineInventory.create({
-          id: `med_${catalogId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+        docsToInsert.push({
+          id: `med_${catalogId}_${Date.now()}_${docsToInsert.length}`,
           catalogId,
           name: cleanName,
           generic: (entry.generic || '').trim(),
@@ -220,7 +221,20 @@ router.post(
           lastRestocked: now,
           updatedAt: now
         });
-        added.push(toPlain(created));
+      }
+
+      if (docsToInsert.length > 0) {
+        if (typeof MedicineInventory.insertMany === 'function') {
+          const insertedDocs = await MedicineInventory.insertMany(docsToInsert, { ordered: false });
+          for (const doc of insertedDocs) {
+            added.push(toPlain(doc));
+          }
+        } else {
+          for (const docData of docsToInsert) {
+            const created = await MedicineInventory.create(docData);
+            added.push(toPlain(created));
+          }
+        }
       }
 
       await logAuditEvent(req, {

@@ -937,13 +937,13 @@ class HealthStore {
     }>
   ): Promise<{ added: MedicineStockItem[]; skipped: string[] }> {
     try {
-      const CHUNK_SIZE = 150;
+      const CHUNK_SIZE = 100;
       const addedItems: MedicineStockItem[] = [];
       const skipped: string[] = [];
 
       for (let i = 0; i < medicines.length; i += CHUNK_SIZE) {
         const chunk = medicines.slice(i, i + CHUNK_SIZE);
-        const res = await api.post('/inventory/import', { medicines: chunk });
+        const res = await api.post('/inventory/import', { medicines: chunk }, { timeout: 60000 });
         const result = unwrapData<{ added: any[]; skipped: string[] }>(res);
         const addedRaw = Array.isArray(result?.added) ? result.added : [];
         if (Array.isArray(result?.skipped)) {
