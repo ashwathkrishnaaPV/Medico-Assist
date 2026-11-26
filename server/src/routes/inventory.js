@@ -6,6 +6,7 @@ const { authenticate, authorizeRoles } = require('../middleware/rbac');
 const { validate } = require('../middleware/validate');
 const {
   createInventorySchema,
+  importInventorySchema,
   updateInventorySchema,
   bulkInventorySchema,
   deductInventorySchema
@@ -166,6 +167,85 @@ router.post(
       return res.status(500).json({
         success: false,
         error: { code: 'INVENTORY_CREATE_ERROR', message: err.message }
+      });
+    }
+  }
+);
+
+// POST /api/inventory/import — Batch import extracted medicines from uploaded file (Admin / Medical Staff)
+router.post(
+  '/import',
+  authenticate,
+  authorizeRoles('ADMIN', 'MEDICAL_STAFF'),
+  validate({ body: importInventorySchema }),
+  async (req, res) => {
+    try {
+      const MedicineInventory = getModel('MedicineInventory');
+      const { medicines } = req.body;
+
+      const allItems = await MedicineInventory.find({});
+      const existingNames = new Set(
+        allItems.map((it) => String(it.name || '').trim().toLowerCase())
+      );
+      let nextCatalogId = allItems.reduce((max, it) => Math.max(max, Number(it.catalogId) || 0), 0) + 1;
+      const now = new Date().toISOString();
+
+      const added = [];
+      const skipped = [];
+
+      for (const entry of medicines) {
+        const cleanName = entry.name.trim();
+        const key = cleanName.toLowerCase();
+        if (existingNames.has(key)) {
+          skipped.push(cleanName);
+          continue;
+        }
+        existingNames.add(key);
+
+        const quantity = Number(entry.quantity);
+        const minThreshold = Number(entry.minThreshold) || 20;
+        const catalogId = nextCatalogId++;
+        const created = await MedicineInventory.create({
+          id: `med_${catalogId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          catalogId,
+          name: cleanName,
+          generic: (entry.generic || '').trim(),
+          category: (entry.category || 'Tablet').trim(),
+          isTablet: Boolean(entry.isTablet),
+          defaultDosage: (entry.defaultDosage || '1 tablet').trim(),
+          symptoms: (entry.symptoms || '').trim(),
+          quantity,
+          minThreshold,
+          status: computeStockStatus(quantity, minThreshold),
+          lastRestocked: now,
+          updatedAt: now
+        });
+        added.push(toPlain(created));
+      }
+
+      await logAuditEvent(req, {
+        action: 'IMPORT_INVENTORY_MEDICINES',
+        resourceType: 'INVENTORY',
+        resource: 'BATCH_IMPORT',
+        details: `Imported ${added.length} medicine(s) (${skipped.length} duplicate(s) skipped)`,
+        sensitivity: 'LOW',
+        outcome: 'SUCCESS'
+      });
+
+      return res.status(added.length > 0 ? 201 : 200).json({
+        success: true,
+        message: `Imported ${added.length} medicine(s)${skipped.length > 0 ? ` (${skipped.length} duplicate(s) skipped)` : ''}.`,
+        data: {
+          added,
+          skipped,
+          totalAdded: added.length,
+          totalSkipped: skipped.length
+        }
+      });
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        error: { code: 'INVENTORY_IMPORT_ERROR', message: err.message }
       });
     }
   }

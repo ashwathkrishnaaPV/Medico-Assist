@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Pill, Search, AlertCircle, CheckCircle2, AlertTriangle, 
-  Plus, Minus, PackageCheck, Layers, Check
+  Plus, Minus, PackageCheck, Layers, Check, Upload, FileSpreadsheet, Download
 } from 'lucide-react';
 import { healthStore } from '../../services/healthStore';
 import { MedicineStockItem, StockStatus } from '../../types';
+import { parseMedicineFile, ExtractedMedicineInput } from '../../utils/medicineFileParser';
 
 interface MedicineInventoryManagerProps {
   onNavigate?: (tab: string) => void;
@@ -36,6 +37,11 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
   const [newMedThreshold, setNewMedThreshold] = useState<number>(20);
   const [newMedSymptoms, setNewMedSymptoms] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
+  const [addMode, setAddMode] = useState<'single' | 'upload'>('single');
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [extractedRows, setExtractedRows] = useState<ExtractedMedicineInput[]>([]);
+  const [selectedRowIndices, setSelectedRowIndices] = useState<Set<number>>(new Set());
+  const [extractWarnings, setExtractWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     const refreshInventory = () => {
@@ -142,6 +148,96 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
     }
   };
 
+  const existingMedicineNames = useMemo(() => {
+    return new Set(items.map(it => it.name.trim().toLowerCase()));
+  }, [items]);
+
+  const resetUploadState = () => {
+    setUploadedFileName(null);
+    setExtractedRows([]);
+    setSelectedRowIndices(new Set());
+    setExtractWarnings([]);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setAddError(null);
+    setUploadedFileName(file.name);
+
+    try {
+      const content = await file.text();
+      const result = parseMedicineFile(content, file.name);
+      setExtractedRows(result.items);
+      setExtractWarnings(result.warnings);
+
+      const initialSelected = new Set<number>();
+      result.items.forEach((row, idx) => {
+        if (!existingMedicineNames.has(row.name.trim().toLowerCase())) {
+          initialSelected.add(idx);
+        }
+      });
+      setSelectedRowIndices(initialSelected);
+
+      if (result.items.length === 0) {
+        setAddError('No medicine entries could be extracted from this file. Check the format or download the sample CSV.');
+      }
+    } catch {
+      setAddError('Could not read the uploaded file.');
+      resetUploadState();
+    }
+  };
+
+  const toggleExtractedRow = (idx: number) => {
+    setSelectedRowIndices(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const handleImportExtracted = async () => {
+    setAddError(null);
+    const toImport = extractedRows.filter((_, idx) => selectedRowIndices.has(idx));
+    if (toImport.length === 0) {
+      setAddError('Select at least one medicine to import.');
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const { added, skipped } = await healthStore.importMedicinesToInventory(toImport);
+      setShowAddModal(false);
+      resetUploadState();
+      setAddMode('single');
+      const skipNote = skipped.length > 0 ? ` (${skipped.length} duplicate skipped)` : '';
+      showToast(`Imported ${added.length} medicine(s) to inventory${skipNote}.`);
+    } catch (err: unknown) {
+      setAddError(err instanceof Error ? err.message : 'Failed to import medicines.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDownloadSampleCsv = () => {
+    const sample = [
+      'Name,Generic,Category,Default Dosage,Quantity,Min Threshold,Symptoms',
+      'Azithromycin 500mg,Azithromycin,Tablet,1 tablet,120,20,"Throat infection, fever"',
+      'Amoxicillin 250mg,Amoxicillin,Capsule,1 capsule,80,15,Bacterial infection',
+      'Dextromethorphan Syrup,Dextromethorphan,Syrup,5 ml,45,10,Dry cough',
+    ].join('\n');
+    const blob = new Blob([sample], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'medicines_template.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Handle single quantity adjustment
   const handleQuantityChange = (id: string, value: number) => {
     setEditingQuantities(prev => ({
@@ -233,12 +329,22 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
         {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={() => { setAddError(null); setShowAddModal(true); }}
+            onClick={() => { setAddError(null); setAddMode('single'); setShowAddModal(true); }}
             disabled={isUpdating}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Add Medicine
+          </button>
+
+          <button
+            onClick={() => { setAddError(null); setAddMode('upload'); setShowAddModal(true); }}
+            disabled={isUpdating}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            title="Upload a CSV, TSV, JSON, or TXT file to extract and add medicines"
+          >
+            <Upload className="w-4 h-4" />
+            Upload Medicine File
           </button>
 
           <button
@@ -690,18 +796,50 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
       {/* Add New Medicine Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+          <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl ${addMode === 'upload' ? 'max-w-2xl' : 'max-w-lg'} w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto`}>
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
               <h3 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                <Plus className="w-5 h-5 text-emerald-600" />
-                Add New Medicine to Inventory
+                {addMode === 'upload' ? (
+                  <FileSpreadsheet className="w-5 h-5 text-indigo-600" />
+                ) : (
+                  <Plus className="w-5 h-5 text-emerald-600" />
+                )}
+                Add Medicine to Inventory
               </h3>
               <button
                 type="button"
-                onClick={() => setShowAddModal(false)}
+                onClick={() => { setShowAddModal(false); setAddError(null); }}
                 className="text-slate-400 hover:text-slate-600 font-bold p-1 cursor-pointer"
               >
                 ✕
+              </button>
+            </div>
+
+            {/* Mode Switcher */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => { setAddError(null); setAddMode('single'); }}
+                className={`py-2 px-3 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  addMode === 'single'
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Single Entry
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAddError(null); setAddMode('upload'); }}
+                className={`py-2 px-3 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  addMode === 'upload'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Upload &amp; Extract File
               </button>
             </div>
 
@@ -711,109 +849,243 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
               </div>
             )}
 
-            <form onSubmit={handleAddMedicine} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Medicine Name &amp; Strength <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Azithromycin 500mg"
-                  value={newMedName}
-                  onChange={e => setNewMedName(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+            {addMode === 'single' ? (
+              <form onSubmit={handleAddMedicine} className="space-y-3 text-xs">
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Generic Name</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Medicine Name &amp; Strength <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
-                    placeholder="e.g. Azithromycin"
-                    value={newMedGeneric}
-                    onChange={e => setNewMedGeneric(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Category</label>
-                  <select
-                    value={newMedCategory}
-                    onChange={e => setNewMedCategory(e.target.value)}
+                    required
+                    placeholder="e.g. Azithromycin 500mg"
+                    value={newMedName}
+                    onChange={e => setNewMedName(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold"
-                  >
-                    {['Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment', 'Drops', 'Inhaler', 'Other'].map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Generic Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Azithromycin"
+                      value={newMedGeneric}
+                      onChange={e => setNewMedGeneric(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                    <select
+                      value={newMedCategory}
+                      onChange={e => setNewMedCategory(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold"
+                    >
+                      {['Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment', 'Drops', 'Inhaler', 'Other'].map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Default Dosage</label>
+                    <input
+                      type="text"
+                      placeholder="1 tablet"
+                      value={newMedDosage}
+                      onChange={e => setNewMedDosage(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Initial Qty</label>
+                    <input
+                      type="number"
+                      min={0}
+                      required
+                      value={newMedQuantity}
+                      onChange={e => setNewMedQuantity(Math.max(0, Number(e.target.value)))}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Min Alert</label>
+                    <input
+                      type="number"
+                      min={1}
+                      required
+                      value={newMedThreshold}
+                      onChange={e => setNewMedThreshold(Math.max(1, Number(e.target.value)))}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Default Dosage</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Symptoms / Indications</label>
                   <input
                     type="text"
-                    placeholder="1 tablet"
-                    value={newMedDosage}
-                    onChange={e => setNewMedDosage(e.target.value)}
+                    placeholder="e.g. Bacterial infection, fever"
+                    value={newMedSymptoms}
+                    onChange={e => setNewMedSymptoms(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
                   />
                 </div>
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Initial Qty</label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={newMedQuantity}
-                    onChange={e => setNewMedQuantity(Math.max(0, Number(e.target.value)))}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Min Alert</label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={newMedThreshold}
-                    onChange={e => setNewMedThreshold(Math.max(1, Number(e.target.value)))}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Symptoms / Indications</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Bacterial infection, fever"
-                  value={newMedSymptoms}
-                  onChange={e => setNewMedSymptoms(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                />
-              </div>
+                <div className="border-t border-slate-200 dark:border-slate-800 pt-3 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUpdating}
+                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {isUpdating ? 'Saving…' : 'Add Medicine'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-slate-600 dark:text-slate-400">
+                    Upload a <strong>.csv</strong>, <strong>.tsv</strong>, <strong>.json</strong>, or <strong>.txt</strong> file containing your medicine list to extract and preview entries.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleDownloadSampleCsv}
+                    className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Sample CSV
+                  </button>
+                </div>
 
-              <div className="border-t border-slate-200 dark:border-slate-800 pt-3 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUpdating}
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
-                >
-                  {isUpdating ? 'Saving…' : 'Add Medicine'}
-                </button>
+                <label className="flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border-2 border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition cursor-pointer text-center">
+                  <Upload className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                  <div className="font-bold text-slate-800 dark:text-slate-200">
+                    {uploadedFileName ? `Selected: ${uploadedFileName}` : 'Click to choose a medicine list file'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Supports CSV/TSV columns (Name, Generic, Category, Dosage, Quantity, Symptoms), JSON arrays, or line-by-line text lists
+                  </div>
+                  <input
+                    type="file"
+                    accept=".csv,.tsv,.json,.txt,text/csv,application/json,text/plain"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+
+                {extractWarnings.length > 0 && (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 space-y-1">
+                    {extractWarnings.slice(0, 4).map((w, i) => (
+                      <div key={i}>• {w}</div>
+                    ))}
+                  </div>
+                )}
+
+                {extractedRows.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                      <span>
+                        Extracted {extractedRows.length} medicine(s) · {selectedRowIndices.size} selected for import
+                      </span>
+                      <button
+                        type="button"
+                        onClick={resetUploadState}
+                        className="text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    </div>
+
+                    <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-50 dark:bg-slate-800 sticky top-0 text-[11px] text-slate-500 dark:text-slate-400 uppercase">
+                          <tr>
+                            <th className="p-2 w-8"></th>
+                            <th className="p-2">Medicine</th>
+                            <th className="p-2">Category</th>
+                            <th className="p-2 text-right">Qty</th>
+                            <th className="p-2 text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {extractedRows.map((row, idx) => {
+                            const exists = existingMedicineNames.has(row.name.trim().toLowerCase());
+                            const checked = selectedRowIndices.has(idx);
+                            return (
+                              <tr
+                                key={`${row.name}-${idx}`}
+                                onClick={() => toggleExtractedRow(idx)}
+                                className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
+                              >
+                                <td className="p-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => {}}
+                                    className="rounded border-slate-300"
+                                  />
+                                </td>
+                                <td className="p-2">
+                                  <div className="font-bold text-slate-900 dark:text-white">{row.name}</div>
+                                  {row.generic && (
+                                    <div className="text-[11px] text-slate-500">{row.generic}</div>
+                                  )}
+                                </td>
+                                <td className="p-2 text-slate-600 dark:text-slate-300">{row.category}</td>
+                                <td className="p-2 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
+                                  {row.quantity}
+                                </td>
+                                <td className="p-2 text-right">
+                                  {exists ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
+                                      Exists
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+                                      New
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-t border-slate-200 dark:border-slate-800 pt-3 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddModal(false); setAddError(null); }}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleImportExtracted}
+                    disabled={isUpdating || selectedRowIndices.size === 0}
+                    className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {isUpdating ? 'Importing…' : `Import Selected (${selectedRowIndices.size})`}
+                  </button>
+                </div>
               </div>
-            </form>
+            )}
           </div>
         </div>
       )}

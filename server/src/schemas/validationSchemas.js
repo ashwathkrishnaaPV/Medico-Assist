@@ -245,6 +245,10 @@ const createInventorySchema = z.object({
   minThreshold: z.coerce.number().int().min(1).max(10000).optional().default(20)
 }).strict();
 
+const importInventorySchema = z.object({
+  medicines: z.array(createInventorySchema).min(1).max(200)
+}).strict();
+
 const updateInventorySchema = z.object({
   quantity: z.coerce.number().int().min(0).max(100000),
   minThreshold: z.coerce.number().int().min(1).max(10000).optional()
@@ -315,6 +319,7 @@ module.exports = {
   generateEmergencyTokenSchema,
   verifyEmergencyTokenSchema,
   createInventorySchema,
+  importInventorySchema,
   updateInventorySchema,
   bulkInventorySchema,
   deductInventorySchema,
