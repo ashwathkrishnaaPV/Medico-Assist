@@ -63,69 +63,71 @@ export const StudentPrescriptions: React.FC<StudentPrescriptionsProps> = () => {
   return (
     <div className="space-y-6 theme-student animate-fade-in pb-12 print:pb-0 print:space-y-0">
       {/* ─── PRINT-ONLY CLEAN PRESCRIPTION SHEET ─── */}
-      <div className="hidden print:block bg-white text-slate-900 space-y-6">
-        <div className="border-b-2 border-slate-900 pb-4 flex justify-between items-end">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
-              Campus Health Medical Centre
+      <div className="hidden print:flex print:min-h-[90vh] print:items-center print:justify-center bg-white text-slate-900">
+        <div className="w-full max-w-2xl mx-auto space-y-6">
+          <div className="border-b-2 border-slate-900 pb-4 flex justify-between items-end">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                Campus Health Medical Centre
+              </div>
+              <h1 className="text-2xl font-extrabold text-slate-900 mt-0.5">Prescription</h1>
             </div>
-            <h1 className="text-2xl font-extrabold text-slate-900 mt-0.5">Prescription</h1>
+            <div className="text-right text-xs text-slate-600">
+              <div>Date: <strong>{currentVer.createdAt}</strong></div>
+              <div>Doctor: <strong>{activeRx.doctorName}</strong></div>
+            </div>
           </div>
-          <div className="text-right text-xs text-slate-600">
-            <div>Date: <strong>{currentVer.createdAt}</strong></div>
-            <div>Doctor: <strong>{activeRx.doctorName}</strong></div>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4 p-4 rounded-xl border border-slate-300 bg-slate-50 text-sm">
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Patient Name
+          <div className="grid grid-cols-2 gap-4 p-4 rounded-xl border border-slate-300 bg-slate-50 text-sm">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Patient Name
+              </div>
+              <div className="font-bold text-slate-900 text-base mt-0.5">
+                {patientName}
+                {studentId ? <span className="text-xs font-normal text-slate-600 ml-2">({studentId})</span> : null}
+              </div>
             </div>
-            <div className="font-bold text-slate-900 text-base mt-0.5">
-              {patientName}
-              {studentId ? <span className="text-xs font-normal text-slate-600 ml-2">({studentId})</span> : null}
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Cause / Diagnosis
+              </div>
+              <div className="font-bold text-slate-900 text-base mt-0.5">{visitCause}</div>
             </div>
           </div>
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Cause / Diagnosis
-            </div>
-            <div className="font-bold text-slate-900 text-base mt-0.5">{visitCause}</div>
-          </div>
-        </div>
 
-        <div className="space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Prescribed Medicines
-          </h2>
-          <table className="w-full border-collapse border border-slate-300 text-sm">
-            <thead>
-              <tr className="bg-slate-100 text-left text-xs uppercase text-slate-700">
-                <th className="border border-slate-300 px-3 py-2">#</th>
-                <th className="border border-slate-300 px-3 py-2">Medicine</th>
-                <th className="border border-slate-300 px-3 py-2">Dosage</th>
-                <th className="border border-slate-300 px-3 py-2">Frequency</th>
-                <th className="border border-slate-300 px-3 py-2">Duration</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentVer.items.map((item, idx) => (
-                <tr key={idx}>
-                  <td className="border border-slate-300 px-3 py-2 font-semibold">{idx + 1}</td>
-                  <td className="border border-slate-300 px-3 py-2">
-                    <div className="font-bold text-slate-900">{item.medicineName}</div>
-                    {item.instructions ? (
-                      <div className="text-xs text-slate-600 italic mt-0.5">{item.instructions}</div>
-                    ) : null}
-                  </td>
-                  <td className="border border-slate-300 px-3 py-2">{item.dosage}</td>
-                  <td className="border border-slate-300 px-3 py-2">{item.frequency}</td>
-                  <td className="border border-slate-300 px-3 py-2 font-semibold">{item.durationDays} Days</td>
+          <div className="space-y-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Prescribed Medicines
+            </h2>
+            <table className="w-full border-collapse border border-slate-300 text-sm">
+              <thead>
+                <tr className="bg-slate-100 text-left text-xs uppercase text-slate-700">
+                  <th className="border border-slate-300 px-3 py-2">#</th>
+                  <th className="border border-slate-300 px-3 py-2">Medicine</th>
+                  <th className="border border-slate-300 px-3 py-2">Dosage</th>
+                  <th className="border border-slate-300 px-3 py-2">Frequency</th>
+                  <th className="border border-slate-300 px-3 py-2">Duration</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {currentVer.items.map((item, idx) => (
+                  <tr key={idx}>
+                    <td className="border border-slate-300 px-3 py-2 font-semibold">{idx + 1}</td>
+                    <td className="border border-slate-300 px-3 py-2">
+                      <div className="font-bold text-slate-900">{item.medicineName}</div>
+                      {item.instructions ? (
+                        <div className="text-xs text-slate-600 italic mt-0.5">{item.instructions}</div>
+                      ) : null}
+                    </td>
+                    <td className="border border-slate-300 px-3 py-2">{item.dosage}</td>
+                    <td className="border border-slate-300 px-3 py-2">{item.frequency}</td>
+                    <td className="border border-slate-300 px-3 py-2 font-semibold">{item.durationDays} Days</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
