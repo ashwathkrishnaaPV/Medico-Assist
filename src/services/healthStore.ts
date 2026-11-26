@@ -937,30 +937,40 @@ class HealthStore {
     }>
   ): Promise<{ added: MedicineStockItem[]; skipped: string[] }> {
     try {
-      const res = await api.post('/inventory/import', { medicines });
-      const result = unwrapData<{ added: any[]; skipped: string[] }>(res);
-      const addedRaw = Array.isArray(result?.added) ? result.added : [];
-      const skipped = Array.isArray(result?.skipped) ? result.skipped : [];
+      const CHUNK_SIZE = 150;
+      const addedItems: MedicineStockItem[] = [];
+      const skipped: string[] = [];
 
-      const addedItems: MedicineStockItem[] = addedRaw.map((created: any) => {
-        const q = Number(created?.quantity) || 0;
-        const status: StockStatus = q >= 50 ? 'Full Stock' : q >= 10 ? 'Less Stock' : 'Restock';
-        return {
-          id: String(created?.id || created?._id || `med_${Date.now()}_${Math.random()}`),
-          catalogId: Number(created?.catalogId) || this.medicineInventory.length + 1,
-          name: created?.name || '',
-          generic: created?.generic ?? '',
-          category: created?.category || 'Tablet',
-          isTablet: Boolean(created?.isTablet ?? true),
-          defaultDosage: created?.defaultDosage || '1 tablet',
-          symptoms: created?.symptoms ?? '',
-          quantity: q,
-          minThreshold: Number(created?.minThreshold) || 20,
-          status: (created?.status || status) as StockStatus,
-          lastRestocked: created?.lastRestocked || new Date().toISOString(),
-          updatedAt: created?.updatedAt || new Date().toISOString()
-        };
-      });
+      for (let i = 0; i < medicines.length; i += CHUNK_SIZE) {
+        const chunk = medicines.slice(i, i + CHUNK_SIZE);
+        const res = await api.post('/inventory/import', { medicines: chunk });
+        const result = unwrapData<{ added: any[]; skipped: string[] }>(res);
+        const addedRaw = Array.isArray(result?.added) ? result.added : [];
+        if (Array.isArray(result?.skipped)) {
+          skipped.push(...result.skipped);
+        }
+
+        const mappedChunk: MedicineStockItem[] = addedRaw.map((created: any) => {
+          const q = Number(created?.quantity) || 0;
+          const status: StockStatus = q >= 50 ? 'Full Stock' : q >= 10 ? 'Less Stock' : 'Restock';
+          return {
+            id: String(created?.id || created?._id || `med_${Date.now()}_${Math.random()}`),
+            catalogId: Number(created?.catalogId) || this.medicineInventory.length + 1,
+            name: created?.name || '',
+            generic: created?.generic ?? '',
+            category: created?.category || 'Tablet',
+            isTablet: Boolean(created?.isTablet ?? true),
+            defaultDosage: created?.defaultDosage || '1 tablet',
+            symptoms: created?.symptoms ?? '',
+            quantity: q,
+            minThreshold: Number(created?.minThreshold) || 20,
+            status: (created?.status || status) as StockStatus,
+            lastRestocked: created?.lastRestocked || new Date().toISOString(),
+            updatedAt: created?.updatedAt || new Date().toISOString()
+          };
+        });
+        addedItems.push(...mappedChunk);
+      }
 
       if (addedItems.length > 0) {
         this.medicineInventory = [...addedItems, ...this.medicineInventory];

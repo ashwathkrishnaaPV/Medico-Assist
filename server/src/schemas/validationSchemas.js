@@ -246,7 +246,7 @@ const createInventorySchema = z.object({
 }).strict();
 
 const importInventorySchema = z.object({
-  medicines: z.array(createInventorySchema).min(1).max(200)
+  medicines: z.array(createInventorySchema).min(1).max(2000)
 }).strict();
 
 const updateInventorySchema = z.object({
