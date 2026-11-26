@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { healthStore } from '../../services/healthStore';
 import { MedicineStockItem, StockStatus } from '../../types';
-import { parseMedicineFile, ExtractedMedicineInput } from '../../utils/medicineFileParser';
+import { extractMedicinesFromFile, ExtractedMedicineInput } from '../../utils/medicineFileParser';
 
 interface MedicineInventoryManagerProps {
   onNavigate?: (tab: string) => void;
@@ -42,6 +42,7 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
   const [extractedRows, setExtractedRows] = useState<ExtractedMedicineInput[]>([]);
   const [selectedRowIndices, setSelectedRowIndices] = useState<Set<number>>(new Set());
   const [extractWarnings, setExtractWarnings] = useState<string[]>([]);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   useEffect(() => {
     const refreshInventory = () => {
@@ -166,10 +167,10 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
 
     setAddError(null);
     setUploadedFileName(file.name);
+    setIsExtracting(true);
 
     try {
-      const content = await file.text();
-      const result = parseMedicineFile(content, file.name);
+      const result = await extractMedicinesFromFile(file);
       setExtractedRows(result.items);
       setExtractWarnings(result.warnings);
 
@@ -185,8 +186,10 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
         setAddError('No medicine entries could be extracted from this file. Check the format or download the sample CSV.');
       }
     } catch {
-      setAddError('Could not read the uploaded file.');
+      setAddError('Could not read or extract text from the uploaded file.');
       resetUploadState();
+    } finally {
+      setIsExtracting(false);
     }
   };
 
@@ -335,16 +338,6 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
           >
             <Plus className="w-4 h-4" />
             Add Medicine
-          </button>
-
-          <button
-            onClick={() => { setAddError(null); setAddMode('upload'); setShowAddModal(true); }}
-            disabled={isUpdating}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
-            title="Upload a CSV, TSV, JSON, or TXT file to extract and add medicines"
-          >
-            <Upload className="w-4 h-4" />
-            Upload Medicine File
           </button>
 
           <button
@@ -957,7 +950,7 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
               <div className="space-y-4 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-slate-600 dark:text-slate-400">
-                    Upload a <strong>.csv</strong>, <strong>.tsv</strong>, <strong>.json</strong>, or <strong>.txt</strong> file containing your medicine list to extract and preview entries.
+                    Upload a <strong>.pdf</strong>, <strong>.xlsx/.xls</strong>, <strong>.docx</strong>, <strong>.csv</strong>, <strong>.tsv</strong>, <strong>.json</strong>, or <strong>.txt</strong> file containing your medicine list.
                   </p>
                   <button
                     type="button"
@@ -972,15 +965,20 @@ export const MedicineInventoryManager: React.FC<MedicineInventoryManagerProps> =
                 <label className="flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border-2 border-dashed border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition cursor-pointer text-center">
                   <Upload className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                   <div className="font-bold text-slate-800 dark:text-slate-200">
-                    {uploadedFileName ? `Selected: ${uploadedFileName}` : 'Click to choose a medicine list file'}
+                    {isExtracting
+                      ? 'Extracting medicines from file…'
+                      : uploadedFileName
+                        ? `Selected: ${uploadedFileName}`
+                        : 'Click to choose a medicine list file'}
                   </div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Supports CSV/TSV columns (Name, Generic, Category, Dosage, Quantity, Symptoms), JSON arrays, or line-by-line text lists
+                    Supports PDF, Excel (.xlsx/.xls), Word (.docx), CSV, TSV, JSON, or plain-text medicine lists
                   </div>
                   <input
                     type="file"
-                    accept=".csv,.tsv,.json,.txt,text/csv,application/json,text/plain"
+                    accept=".pdf,.xlsx,.xls,.ods,.docx,.csv,.tsv,.json,.txt,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/csv,application/json,text/plain"
                     onChange={handleFileUpload}
+                    disabled={isExtracting}
                     className="hidden"
                   />
                 </label>

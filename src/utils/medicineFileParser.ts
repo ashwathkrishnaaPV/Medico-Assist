@@ -329,3 +329,111 @@ export function parseMedicineFile(content: string, fileName: string): MedicinePa
 
   return deduplicateItems(items, warnings);
 }
+
+/**
+ * Extracts text or structured rows from any supported uploaded file
+ * (PDF, Excel .xlsx/.xls/.ods, Word .docx, CSV, TSV, JSON, TXT, etc.).
+ */
+export async function extractMedicinesFromFile(file: File): Promise<MedicineParseResult> {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  const warnings: string[] = [];
+
+  // 1. Excel / Spreadsheets (.xlsx, .xls, .ods)
+  if (ext === 'xlsx' || ext === 'xls' || ext === 'ods') {
+    const XLSX = await import('xlsx');
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const items: ExtractedMedicineInput[] = [];
+
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet) continue;
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+      if (rows.length > 0) {
+        rows.forEach((r, idx) => {
+          const parsed = buildRow(r);
+          if (parsed) items.push(parsed);
+          else warnings.push(`${sheetName} row ${idx + 2}: skipped (missing medicine name).`);
+        });
+      } else {
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        if (csv.trim()) {
+          const csvRes = parseMedicineFile(csv, `${sheetName}.csv`);
+          items.push(...csvRes.items);
+          warnings.push(...csvRes.warnings);
+        }
+      }
+    }
+
+    return deduplicateItems(items, warnings);
+  }
+
+  // 2. PDF (.pdf)
+  if (ext === 'pdf' || file.type === 'application/pdf') {
+    const pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url
+    ).toString();
+
+    const buffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+    const pageLines: string[] = [];
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const textContent = await page.getTextContent();
+
+      // Group text items by Y coordinate so table columns stay on the same line
+      const rowBuckets = new Map<number, Array<{ x: number; str: string; width: number }>>();
+      for (const rawItem of textContent.items) {
+        if (!('str' in rawItem) || !rawItem.str.trim()) continue;
+        const transform = rawItem.transform as number[];
+        const x = transform?.[4] ?? 0;
+        const y = Math.round((transform?.[5] ?? 0) / 4) * 4;
+        const bucket = rowBuckets.get(y) ?? [];
+        bucket.push({ x, str: rawItem.str.trim(), width: rawItem.width ?? 0 });
+        rowBuckets.set(y, bucket);
+      }
+
+      // PDF Y origin is bottom-left, so sort descending for top-to-bottom reading order
+      const sortedYs = Array.from(rowBuckets.keys()).sort((a, b) => b - a);
+      for (const y of sortedYs) {
+        const cols = (rowBuckets.get(y) ?? []).sort((a, b) => a.x - b.x);
+        if (cols.length === 0) continue;
+
+        let line = cols[0].str;
+        for (let i = 1; i < cols.length; i++) {
+          const prev = cols[i - 1];
+          const curr = cols[i];
+          const gap = curr.x - (prev.x + prev.width);
+          line += (gap > 16 ? '\t' : ' ') + curr.str;
+        }
+        if (line.trim() && !/^page\s+\d+(\s+of\s+\d+)?$/i.test(line.trim())) {
+          pageLines.push(line.trim());
+        }
+      }
+    }
+
+    if (pageLines.length === 0) {
+      return {
+        items: [],
+        warnings: ['No selectable text found in this PDF (scanned image PDFs without text cannot be parsed).'],
+      };
+    }
+
+    return parseMedicineFile(pageLines.join('\n'), 'extracted.txt');
+  }
+
+  // 3. Word Documents (.docx)
+  if (ext === 'docx') {
+    const mammoth = await import('mammoth');
+    const buffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+    return parseMedicineFile(result.value, 'document.txt');
+  }
+
+  // 4. Text-based formats (.csv, .tsv, .json, .txt, etc.)
+  const text = await file.text();
+  return parseMedicineFile(text, file.name);
+}
