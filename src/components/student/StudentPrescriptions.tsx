@@ -62,71 +62,137 @@ export const StudentPrescriptions: React.FC<StudentPrescriptionsProps> = () => {
 
   return (
     <div className="space-y-6 theme-student animate-fade-in pb-12 print:pb-0 print:space-y-0">
-      {/* ─── PRINT-ONLY CLEAN PRESCRIPTION SHEET ─── */}
-      <div className="hidden print:flex print:min-h-[90vh] print:items-center print:justify-center bg-white text-slate-900">
-        <div className="w-full max-w-2xl mx-auto space-y-6">
-          <div className="border-b-2 border-slate-900 pb-4 flex justify-between items-end">
+      {/* ─── PRINT-ONLY CLASSIC MEDICAL PRESCRIPTION PAD ─── */}
+      <div
+        className="hidden print:flex print:flex-col print:justify-between print:min-h-[92vh] bg-white text-slate-900 px-6 py-4 relative overflow-hidden"
+        style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
+      >
+        {/* Subtle Caduceus Watermark in Center */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+          <svg
+            viewBox="0 0 200 260"
+            className="w-80 h-auto text-slate-900 opacity-[0.07]"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            {/* Top Staff Sphere */}
+            <circle cx="100" cy="24" r="10" />
+            {/* Central Staff */}
+            <rect x="97" y="32" width="6" height="210" rx="3" />
+            {/* Wings */}
+            <path d="M97 44 C70 28, 34 32, 12 46 C26 54, 42 56, 56 56 C44 62, 34 65, 24 67 C42 74, 68 70, 97 56 Z" />
+            <path d="M103 44 C130 28, 166 32, 188 46 C174 54, 158 56, 144 56 C156 62, 166 65, 176 67 C158 74, 132 70, 103 56 Z" />
+            {/* Intertwined Serpents */}
+            <path
+              d="M100 66 C66 76, 66 102, 100 112 C134 122, 134 148, 100 158 C74 166, 74 188, 100 198 C118 205, 118 220, 100 228"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="8"
+              strokeLinecap="round"
+            />
+            <path
+              d="M100 66 C134 76, 134 102, 100 112 C66 122, 66 148, 100 158 C126 166, 126 188, 100 198 C82 205, 82 220, 100 228"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="8"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+
+        {/* Top Section: Doctor Header + Patient Info */}
+        <div className="relative z-10 space-y-6">
+          {/* Doctor & Clinic Header */}
+          <div className="flex justify-between items-start gap-6">
             <div>
-              <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                Campus Health Medical Centre
-              </div>
-              <h1 className="text-2xl font-extrabold text-slate-900 mt-0.5">Prescription</h1>
+              <div className="text-lg font-extrabold text-slate-900">{activeRx.doctorName}</div>
+              <div className="text-xs text-slate-700 font-medium">Campus Medical Centre Officer</div>
             </div>
-            <div className="text-right text-xs text-slate-600">
-              <div>Date: <strong>{currentVer.createdAt}</strong></div>
-              <div>Doctor: <strong>{activeRx.doctorName}</strong></div>
+            <div className="text-left text-xs text-slate-800 leading-relaxed min-w-[210px]">
+              <div className="font-semibold">Clinic Hours:</div>
+              <div>Mon–Fri: 09:00 – 17:00</div>
+              <div>Sat: 09:00 – 13:00</div>
+              <div className="mt-1.5 text-slate-700">Campus Health Medical Centre, SECE</div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 p-4 rounded-xl border border-slate-300 bg-slate-50 text-sm">
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Patient Name
-              </div>
-              <div className="font-bold text-slate-900 text-base mt-0.5">
-                {patientName}
-                {studentId ? <span className="text-xs font-normal text-slate-600 ml-2">({studentId})</span> : null}
-              </div>
+          {/* Rx Symbol + Underlined Patient Fields */}
+          <div className="flex items-start gap-4 pt-2">
+            <div className="text-4xl font-black font-serif leading-none text-slate-900 select-none pt-1">
+              ℞
             </div>
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Cause / Diagnosis
+            <div className="flex-1 space-y-3 text-xs">
+              <div className="flex items-end gap-2">
+                <span className="font-bold text-slate-900 shrink-0">Patient&apos;s Name:</span>
+                <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-semibold text-sm text-slate-900">
+                  {patientName}
+                  {studentId ? <span className="text-xs font-normal text-slate-600 ml-2">({studentId})</span> : null}
+                </div>
               </div>
-              <div className="font-bold text-slate-900 text-base mt-0.5">{visitCause}</div>
+
+              <div className="grid grid-cols-12 gap-3">
+                <div className="col-span-3 flex items-end gap-1.5">
+                  <span className="font-bold text-slate-900 shrink-0">Sex:</span>
+                  <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
+                    {profile?.gender || '—'}
+                  </div>
+                </div>
+                <div className="col-span-3 flex items-end gap-1.5">
+                  <span className="font-bold text-slate-900 shrink-0">Age:</span>
+                  <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
+                    {profile?.age ? `${profile.age}` : '—'}
+                  </div>
+                </div>
+                <div className="col-span-6 flex items-end gap-1.5">
+                  <span className="font-bold text-slate-900 shrink-0">Date:</span>
+                  <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
+                    {currentVer.createdAt}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-end gap-2">
+                <span className="font-bold text-slate-900 shrink-0">Cause / Diagnosis:</span>
+                <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
+                  {visitCause}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Prescribed Medicines
-            </h2>
-            <table className="w-full border-collapse border border-slate-300 text-sm">
-              <thead>
-                <tr className="bg-slate-100 text-left text-xs uppercase text-slate-700">
-                  <th className="border border-slate-300 px-3 py-2">#</th>
-                  <th className="border border-slate-300 px-3 py-2">Medicine</th>
-                  <th className="border border-slate-300 px-3 py-2">Dosage</th>
-                  <th className="border border-slate-300 px-3 py-2">Frequency</th>
-                  <th className="border border-slate-300 px-3 py-2">Duration</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentVer.items.map((item, idx) => (
-                  <tr key={idx}>
-                    <td className="border border-slate-300 px-3 py-2 font-semibold">{idx + 1}</td>
-                    <td className="border border-slate-300 px-3 py-2">
-                      <div className="font-bold text-slate-900">{item.medicineName}</div>
-                      {item.instructions ? (
-                        <div className="text-xs text-slate-600 italic mt-0.5">{item.instructions}</div>
-                      ) : null}
-                    </td>
-                    <td className="border border-slate-300 px-3 py-2">{item.dosage}</td>
-                    <td className="border border-slate-300 px-3 py-2">{item.frequency}</td>
-                    <td className="border border-slate-300 px-3 py-2 font-semibold">{item.durationDays} Days</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Prescribed Medicines Body */}
+          <div className="pt-6 pl-10 space-y-4">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Prescribed Medications
+            </div>
+            <div className="space-y-3.5">
+              {currentVer.items.map((item, idx) => (
+                <div key={idx} className="border-b border-slate-200 pb-2.5">
+                  <div className="flex items-baseline justify-between gap-4">
+                    <div className="font-bold text-sm text-slate-900">
+                      {idx + 1}. {item.medicineName}{' '}
+                      <span className="font-semibold text-xs text-slate-700">({item.dosage})</span>
+                    </div>
+                    <div className="text-xs font-bold text-slate-800 shrink-0">
+                      {item.durationDays} Days
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-700 mt-0.5 pl-4">
+                    {item.frequency}
+                    {item.instructions ? <span className="italic text-slate-600"> — {item.instructions}</span> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom-Right Signature */}
+        <div className="relative z-10 pt-12 flex justify-end">
+          <div className="w-52 text-center">
+            <div className="border-t-2 border-slate-900 pt-1.5 text-xs font-semibold text-slate-800">
+              Signature
+            </div>
           </div>
         </div>
       </div>
