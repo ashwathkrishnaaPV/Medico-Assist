@@ -162,3 +162,22 @@
 .animate-pulse-glow {
   animation: pulseGlow 2s infinite ease-in-out;
 }
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  header,
+  nav,
+  aside {
+    display: none !important;
+  }
+}
