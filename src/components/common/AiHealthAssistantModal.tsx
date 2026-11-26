@@ -98,7 +98,7 @@ export const AiHealthAssistantModal: React.FC<AiHealthAssistantModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-linear-to-r from-blue-50/50 via-white to-indigo-50/50 dark:from-slate-900 dark:to-slate-850">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-linear-to-r from-blue-50/50 via-white to-indigo-50/50 dark:from-slate-900 dark:to-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
               <Bot className="w-5 h-5" />

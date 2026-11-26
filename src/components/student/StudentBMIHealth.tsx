@@ -290,7 +290,7 @@ export const StudentBMIHealth: React.FC = () => {
           </div>
 
           {/* Collegiate Wellness Tips to Fill Lower Space */}
-          <div className="p-3.5 rounded-xl bg-gradient-to-br from-blue-50/70 via-sky-50/40 to-blue-50/70 dark:from-blue-950/40 dark:via-slate-850 dark:to-blue-950/40 border border-blue-200 dark:border-blue-900 space-y-2 text-xs">
+          <div className="p-3.5 rounded-xl bg-gradient-to-br from-blue-50/70 via-sky-50/40 to-blue-50/70 dark:from-blue-950/40 dark:via-slate-900 dark:to-blue-950/40 border border-blue-200 dark:border-blue-900 space-y-2 text-xs">
             <div className="flex items-center gap-1.5 font-bold text-blue-900 dark:text-blue-300 text-[11px] uppercase tracking-wider">
               <Info className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" /> Collegiate Wellness Guidance
             </div>

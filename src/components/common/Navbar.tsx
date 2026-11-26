@@ -69,19 +69,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab: _currentTab, onNavig
     switch (role) {
       case 'STUDENT':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#B3CFE5]/30 text-[#1A3D63] border border-[#B3CFE5]">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#B3CFE5]/30 dark:bg-blue-950/70 text-[#1A3D63] dark:text-blue-200 border border-[#B3CFE5] dark:border-blue-800">
             <GraduationCap className="w-3.5 h-3.5" /> Student Panel
           </span>
         );
       case 'MEDICAL_STAFF':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#1A3D63]/10 text-[#0A1931] border border-[#1A3D63]/30">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#1A3D63]/10 dark:bg-sky-950/70 text-[#0A1931] dark:text-sky-200 border border-[#1A3D63]/30 dark:border-sky-800">
             <Stethoscope className="w-3.5 h-3.5" /> Medical Centre EHR
           </span>
         );
       case 'ADMIN':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#0A1931] text-[#F6FAFD] border border-[#1A3D63]">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-[#0A1931] dark:bg-slate-800 text-[#F6FAFD] border border-[#1A3D63] dark:border-slate-700">
             <ShieldCheck className="w-3.5 h-3.5 text-[#B3CFE5]" /> Admin Enterprise
           </span>
         );
@@ -92,10 +92,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab: _currentTab, onNavig
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b backdrop-blur-md bg-white border-[#B3CFE5]/60 text-slate-800 shadow-xs transition-colors">
+      <header className="sticky top-0 z-30 border-b backdrop-blur-md bg-white/95 dark:bg-[#0A1931]/95 border-[#B3CFE5]/60 dark:border-[#1A3D63] text-slate-800 dark:text-slate-100 shadow-xs transition-colors">
         <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 h-18 sm:h-20 flex items-center justify-between gap-4">
           
-          {/* College Logo & Brand Tagline (No shape, blends seamlessly with white background) */}
+          {/* College Logo & Brand Tagline */}
           <div className="flex items-center gap-4 cursor-pointer select-none py-1" onClick={() => {
             if (currentUser.role === 'STUDENT') onNavigate('student-dashboard');
             else if (currentUser.role === 'MEDICAL_STAFF') onNavigate('medical-dashboard');
@@ -104,19 +104,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab: _currentTab, onNavig
             <img
               src="/college-logo.png"
               alt="Sri Eshwar College of Engineering"
-              className="h-12 sm:h-14 md:h-16 w-auto object-contain"
+              className="h-12 sm:h-14 md:h-16 w-auto object-contain dark:bg-white/95 dark:p-1 dark:rounded-xl"
             />
 
-            <div className="hidden sm:block h-10 w-px bg-[#B3CFE5]" />
+            <div className="hidden sm:block h-10 w-px bg-[#B3CFE5] dark:bg-[#1A3D63]" />
 
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg sm:text-xl tracking-tight text-[#1A3D63]">
+                <span className="font-extrabold text-lg sm:text-xl tracking-tight text-[#1A3D63] dark:text-white">
                   CampusHealth
                 </span>
                 {getRoleBadge(currentUser.role)}
               </div>
-              <p className="hidden sm:block text-[11px] text-[#4A7FA7] font-medium -mt-0.5">
+              <p className="hidden sm:block text-[11px] text-[#4A7FA7] dark:text-[#B3CFE5]/80 font-medium -mt-0.5">
                 Integrated Student Health & Clinical Intelligence · Sri Eshwar
               </p>
             </div>

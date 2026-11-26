@@ -49,7 +49,13 @@ export function App() {
   const [currentTab, setCurrentTab] = useState<string>(() =>
     resolveTabFromUrl(authService.getCurrentUser().role, authService.isAuthenticated())
   );
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('campushealth_dark_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [profileDismissed, setProfileDismissed] = useState(false);
   const [prevUserId, setPrevUserId] = useState(currentUser.id);
   const [storeRevision, setStoreRevision] = useState(0);
@@ -85,6 +91,11 @@ export function App() {
   const showCompleteProfile = Boolean(isProfileIncomplete && !profileDismissed);
 
   useEffect(() => {
+    try {
+      localStorage.setItem('campushealth_dark_mode', String(darkMode));
+    } catch {
+      // ignore storage quota errors
+    }
     if (darkMode) {
       document.documentElement.classList.add('dark');
     } else {

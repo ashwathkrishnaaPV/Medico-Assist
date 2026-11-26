@@ -151,7 +151,7 @@ export const NutritionPlanBuilder: React.FC = () => {
             </div>
 
             {aiAdvice && (
-              <div className="card-clinical p-5 space-y-2 text-xs border border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-slate-850">
+              <div className="card-clinical p-5 space-y-2 text-xs border border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-slate-800/70">
                 <div className="flex items-center justify-between text-blue-700 dark:text-blue-300 font-bold">
                   <span className="flex items-center gap-1.5">
                     <Bot className="w-4 h-4" /> AI Dietary Guidance
