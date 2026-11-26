@@ -64,105 +64,107 @@ export const StudentPrescriptions: React.FC<StudentPrescriptionsProps> = () => {
     <div className="space-y-6 theme-student animate-fade-in pb-12 print:pb-0 print:space-y-0">
       {/* ─── PRINT-ONLY CLASSIC MEDICAL PRESCRIPTION PAD ─── */}
       <div
-        className="hidden print:flex print:flex-col print:justify-between print:min-h-[92vh] bg-white text-slate-900 px-6 py-4 relative overflow-hidden"
+        className="hidden print:flex print:min-h-screen print:w-full print:items-center print:justify-center print:p-10 bg-white text-slate-900"
         style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
       >
-        {/* Subtle Caduceus Watermark in Center */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-          <svg
-            viewBox="0 0 200 260"
-            className="w-80 h-auto text-slate-900 opacity-[0.07]"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            {/* Top Staff Sphere */}
-            <circle cx="100" cy="24" r="10" />
-            {/* Central Staff */}
-            <rect x="97" y="32" width="6" height="210" rx="3" />
-            {/* Wings */}
-            <path d="M97 44 C70 28, 34 32, 12 46 C26 54, 42 56, 56 56 C44 62, 34 65, 24 67 C42 74, 68 70, 97 56 Z" />
-            <path d="M103 44 C130 28, 166 32, 188 46 C174 54, 158 56, 144 56 C156 62, 166 65, 176 67 C158 74, 132 70, 103 56 Z" />
-            {/* Intertwined Serpents */}
-            <path
-              d="M100 66 C66 76, 66 102, 100 112 C134 122, 134 148, 100 158 C74 166, 74 188, 100 198 C118 205, 118 220, 100 228"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="8"
-              strokeLinecap="round"
-            />
-            <path
-              d="M100 66 C134 76, 134 102, 100 112 C66 122, 66 148, 100 158 C126 166, 126 188, 100 198 C82 205, 82 220, 100 228"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="8"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
+        <div className="w-full max-w-2xl min-h-[82vh] border-2 border-slate-800 rounded-2xl p-8 flex flex-col justify-between relative overflow-hidden bg-white">
+          {/* Subtle Caduceus Watermark in Center */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
+            <svg
+              viewBox="0 0 200 260"
+              className="w-80 h-auto text-slate-900 opacity-[0.07]"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              {/* Top Staff Sphere */}
+              <circle cx="100" cy="24" r="10" />
+              {/* Central Staff */}
+              <rect x="97" y="32" width="6" height="210" rx="3" />
+              {/* Wings */}
+              <path d="M97 44 C70 28, 34 32, 12 46 C26 54, 42 56, 56 56 C44 62, 34 65, 24 67 C42 74, 68 70, 97 56 Z" />
+              <path d="M103 44 C130 28, 166 32, 188 46 C174 54, 158 56, 144 56 C156 62, 166 65, 176 67 C158 74, 132 70, 103 56 Z" />
+              {/* Intertwined Serpents */}
+              <path
+                d="M100 66 C66 76, 66 102, 100 112 C134 122, 134 148, 100 158 C74 166, 74 188, 100 198 C118 205, 118 220, 100 228"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="8"
+                strokeLinecap="round"
+              />
+              <path
+                d="M100 66 C134 76, 134 102, 100 112 C66 122, 66 148, 100 158 C126 166, 126 188, 100 198 C82 205, 82 220, 100 228"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
 
-        {/* Top Section: Doctor Header + Patient Info */}
-        <div className="relative z-10 space-y-6">
-          {/* Doctor & Clinic Header */}
-          <div className="flex justify-between items-start gap-6">
-            <div>
-              <div className="text-lg font-extrabold text-slate-900">{activeRx.doctorName}</div>
-              <div className="text-xs text-slate-700 font-medium">Campus Medical Centre Officer</div>
+          {/* Top Section: Doctor Header + Patient Info */}
+          <div className="relative z-10 space-y-5">
+            {/* Doctor & Clinic Header */}
+            <div className="flex justify-between items-start gap-6 border-b border-slate-300 pb-4">
+              <div>
+                <div className="text-lg font-extrabold text-slate-900">{activeRx.doctorName}</div>
+                <div className="text-xs text-slate-700 font-medium">Campus Medical Centre Officer</div>
+              </div>
+              <div className="text-left text-xs text-slate-800 leading-relaxed min-w-[210px]">
+                <div className="font-semibold">Clinic Hours:</div>
+                <div>Mon–Fri: 09:00 – 17:00</div>
+                <div>Sat: 09:00 – 13:00</div>
+                <div className="mt-1 text-slate-700">Campus Health Medical Centre, SECE</div>
+              </div>
             </div>
-            <div className="text-left text-xs text-slate-800 leading-relaxed min-w-[210px]">
-              <div className="font-semibold">Clinic Hours:</div>
-              <div>Mon–Fri: 09:00 – 17:00</div>
-              <div>Sat: 09:00 – 13:00</div>
-              <div className="mt-1.5 text-slate-700">Campus Health Medical Centre, SECE</div>
+
+            {/* Rx Symbol + Underlined Patient Fields */}
+            <div className="flex items-start gap-4 pt-1">
+              <div className="text-4xl font-black font-serif leading-none text-slate-900 select-none pt-1">
+                ℞
+              </div>
+              <div className="flex-1 space-y-3 text-xs">
+                <div className="flex items-end gap-2">
+                  <span className="font-bold text-slate-900 shrink-0">Patient&apos;s Name:</span>
+                  <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-semibold text-sm text-slate-900">
+                    {patientName}
+                    {studentId ? <span className="text-xs font-normal text-slate-600 ml-2">({studentId})</span> : null}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-12 gap-3">
+                  <div className="col-span-3 flex items-end gap-1.5">
+                    <span className="font-bold text-slate-900 shrink-0">Sex:</span>
+                    <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
+                      {profile?.gender || '—'}
+                    </div>
+                  </div>
+                  <div className="col-span-3 flex items-end gap-1.5">
+                    <span className="font-bold text-slate-900 shrink-0">Age:</span>
+                    <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
+                      {profile?.age ? `${profile.age}` : '—'}
+                    </div>
+                  </div>
+                  <div className="col-span-6 flex items-end gap-1.5">
+                    <span className="font-bold text-slate-900 shrink-0">Date:</span>
+                    <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
+                      {currentVer.createdAt}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-end gap-2">
+                  <span className="font-bold text-slate-900 shrink-0">Cause / Diagnosis:</span>
+                  <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
+                    {visitCause}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Rx Symbol + Underlined Patient Fields */}
-          <div className="flex items-start gap-4 pt-2">
-            <div className="text-4xl font-black font-serif leading-none text-slate-900 select-none pt-1">
-              ℞
-            </div>
-            <div className="flex-1 space-y-3 text-xs">
-              <div className="flex items-end gap-2">
-                <span className="font-bold text-slate-900 shrink-0">Patient&apos;s Name:</span>
-                <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-semibold text-sm text-slate-900">
-                  {patientName}
-                  {studentId ? <span className="text-xs font-normal text-slate-600 ml-2">({studentId})</span> : null}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-12 gap-3">
-                <div className="col-span-3 flex items-end gap-1.5">
-                  <span className="font-bold text-slate-900 shrink-0">Sex:</span>
-                  <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
-                    {profile?.gender || '—'}
-                  </div>
-                </div>
-                <div className="col-span-3 flex items-end gap-1.5">
-                  <span className="font-bold text-slate-900 shrink-0">Age:</span>
-                  <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
-                    {profile?.age ? `${profile.age}` : '—'}
-                  </div>
-                </div>
-                <div className="col-span-6 flex items-end gap-1.5">
-                  <span className="font-bold text-slate-900 shrink-0">Date:</span>
-                  <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
-                    {currentVer.createdAt}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-end gap-2">
-                <span className="font-bold text-slate-900 shrink-0">Cause / Diagnosis:</span>
-                <div className="flex-1 border-b border-slate-900 pb-0.5 px-1 font-medium text-slate-900">
-                  {visitCause}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Prescribed Medicines Body */}
-          <div className="pt-6 pl-10 space-y-4">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+          {/* Center Body: Prescribed Medicines Centered Vertically */}
+          <div className="relative z-10 flex-1 flex flex-col justify-center py-6 px-6 space-y-4">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center">
               Prescribed Medications
             </div>
             <div className="space-y-3.5">
@@ -185,13 +187,13 @@ export const StudentPrescriptions: React.FC<StudentPrescriptionsProps> = () => {
               ))}
             </div>
           </div>
-        </div>
 
-        {/* Bottom-Right Signature */}
-        <div className="relative z-10 pt-12 flex justify-end">
-          <div className="w-52 text-center">
-            <div className="border-t-2 border-slate-900 pt-1.5 text-xs font-semibold text-slate-800">
-              Signature
+          {/* Bottom-Right Signature */}
+          <div className="relative z-10 pt-6 flex justify-end">
+            <div className="w-52 text-center">
+              <div className="border-t-2 border-slate-900 pt-1.5 text-xs font-semibold text-slate-800">
+                Signature
+              </div>
             </div>
           </div>
         </div>
